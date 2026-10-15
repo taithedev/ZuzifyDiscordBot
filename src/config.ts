@@ -10,5 +10,6 @@ export const config={
  supabaseUrl:required("SUPABASE_URL"), supabaseServiceKey:required("SUPABASE_SERVICE_ROLE_KEY"),
  groqApiKey:process.env.GROQ_API_KEY?.trim()||"", groqModel:process.env.GROQ_MODEL?.trim()||"llama-3.3-70b-versatile",
  ownerIds:(process.env.BOT_OWNER_IDS||"").split(",").map(x=>x.trim()).filter(Boolean),
+ apiKey:process.env.BOT_API_KEY?.trim()||"", apiPort:Number(process.env.PORT||process.env.BOT_API_PORT||3000),
  status:process.env.BOT_STATUS?.trim()||"Zuzify ecosystem | /help"
 };
