@@ -58,7 +58,7 @@ export function startApi(){
     const {data,error}=await db.storage.from(bucket).createSignedUploadUrl(path);
     if(error){console.error("Storage signed upload URL failed:",error.message);return send(res,500,{error:"Could not create upload URL. Check Storage bucket setup."});}
     const base=config.supabaseUrl.endsWith("/")?config.supabaseUrl.slice(0,-1):config.supabaseUrl;
-    return send(res,201,{bucket,path,token:data.token,signedUrl:base+"/storage/v1"+(data.signedUrl.startsWith("/")?data.signedUrl:"/"+data.signedUrl),contentType,expiresInSeconds:7200});
+    return send(res,201,{bucket,path,token:data.token,signedUrl:data.signedUrl.startsWith("http")?data.signedUrl:base+"/storage/v1"+(data.signedUrl.startsWith("/")?data.signedUrl:"/"+data.signedUrl),contentType,expiresInSeconds:7200});
    }
    if(req.method==="POST"&&parts.length===4&&parts[2]==="storage"&&parts[3]==="download-url"){
     const body=await readJson(req);
