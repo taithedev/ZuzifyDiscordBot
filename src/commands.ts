@@ -11,6 +11,12 @@ const commands = [
  new SlashCommandBuilder().setName("leaderboard").setDescription("Show the server XP leaderboard"),
  new SlashCommandBuilder().setName("rank").setDescription("Show a member's XP and rank").addUserOption(o=>o.setName("user").setDescription("Member to inspect")),
  new SlashCommandBuilder().setName("setup").setDescription("Create default rank roles and configure the bot").setDefaultMemberPermissions(admin),
+ new SlashCommandBuilder().setName("configchannel").setDescription("Set a channel for logs, suggestions, reports or applications").setDefaultMemberPermissions(admin)
+   .addStringOption(o=>o.setName("purpose").setDescription("What the channel is used for").setRequired(true).addChoices({name:"Logs",value:"log_channel"},{name:"Suggestions",value:"suggestion_channel"},{name:"Reports",value:"report_channel"},{name:"Applications",value:"application_channel"},{name:"Tickets",value:"ticket_channel"}))
+   .addChannelOption(o=>o.setName("channel").setDescription("Target text channel").setRequired(true).addChannelTypes(ChannelType.GuildText,ChannelType.GuildAnnouncement)),
+ new SlashCommandBuilder().setName("rankrole").setDescription("Assign a role reward to a level").setDefaultMemberPermissions(admin)
+   .addIntegerOption(o=>o.setName("level").setDescription("Level required").setRequired(true).setMinValue(1).setMaxValue(1000))
+   .addRoleOption(o=>o.setName("role").setDescription("Role to grant at that level").setRequired(true)),
  new SlashCommandBuilder().setName("rankconfig").setDescription("Configure XP gain and rank role rewards").setDefaultMemberPermissions(admin)
    .addIntegerOption(o=>o.setName("xp_min").setDescription("Minimum XP per message").setMinValue(1).setMaxValue(100))
    .addIntegerOption(o=>o.setName("xp_max").setDescription("Maximum XP per message").setMinValue(1).setMaxValue(200))
