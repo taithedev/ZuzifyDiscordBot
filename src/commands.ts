@@ -1,0 +1,74 @@
+import { SlashCommandBuilder, PermissionFlagsBits, ChannelType } from "discord.js";
+
+const admin = PermissionFlagsBits.ManageGuild;
+const mod = PermissionFlagsBits.ModerateMembers;
+const commands = [
+ new SlashCommandBuilder().setName("help").setDescription("Show bot commands"),
+ new SlashCommandBuilder().setName("ping").setDescription("Check bot latency"),
+ new SlashCommandBuilder().setName("about").setDescription("About Zuzify Bot"),
+ new SlashCommandBuilder().setName("serverstats").setDescription("Show server statistics"),
+ new SlashCommandBuilder().setName("profile").setDescription("Show your or another member's profile").addUserOption(o=>o.setName("user").setDescription("Member to inspect")),
+ new SlashCommandBuilder().setName("leaderboard").setDescription("Show the server XP leaderboard"),
+ new SlashCommandBuilder().setName("rank").setDescription("Show a member's XP and rank").addUserOption(o=>o.setName("user").setDescription("Member to inspect")),
+ new SlashCommandBuilder().setName("setup").setDescription("Create default rank roles and configure the bot").setDefaultMemberPermissions(admin),
+ new SlashCommandBuilder().setName("rankconfig").setDescription("Configure XP gain and rank role rewards").setDefaultMemberPermissions(admin)
+   .addIntegerOption(o=>o.setName("xp_min").setDescription("Minimum XP per message").setMinValue(1).setMaxValue(100))
+   .addIntegerOption(o=>o.setName("xp_max").setDescription("Maximum XP per message").setMinValue(1).setMaxValue(200))
+   .addIntegerOption(o=>o.setName("cooldown").setDescription("Seconds between XP awards").setMinValue(5).setMaxValue(3600))
+   .addIntegerOption(o=>o.setName("level_step").setDescription("XP needed per level step").setMinValue(50).setMaxValue(5000)),
+ new SlashCommandBuilder().setName("ai").setDescription("Ask Zuzify AI").addStringOption(o=>o.setName("prompt").setDescription("What should the AI help with?").setRequired(true).setMaxLength(1500)),
+ new SlashCommandBuilder().setName("signup").setDescription("Create an optional Zuzify bot account using a modal"),
+ new SlashCommandBuilder().setName("login").setDescription("Sign in to your optional Zuzify bot account"),
+ new SlashCommandBuilder().setName("suggest").setDescription("Submit a suggestion using a form"),
+ new SlashCommandBuilder().setName("report").setDescription("Submit a private report using a form"),
+ new SlashCommandBuilder().setName("formpanel").setDescription("Post a panel with clickable form buttons").setDefaultMemberPermissions(admin),
+ new SlashCommandBuilder().setName("application").setDescription("Submit a community/team application form"),
+ new SlashCommandBuilder().setName("poll").setDescription("Create a poll with two to five options")
+   .addStringOption(o=>o.setName("question").setDescription("Poll question").setRequired(true).setMaxLength(200))
+   .addStringOption(o=>o.setName("option1").setDescription("First option").setRequired(true).setMaxLength(80))
+   .addStringOption(o=>o.setName("option2").setDescription("Second option").setRequired(true).setMaxLength(80))
+   .addStringOption(o=>o.setName("option3").setDescription("Optional third option").setMaxLength(80))
+   .addStringOption(o=>o.setName("option4").setDescription("Optional fourth option").setMaxLength(80))
+   .addStringOption(o=>o.setName("option5").setDescription("Optional fifth option").setMaxLength(80)),
+ new SlashCommandBuilder().setName("ticketpanel").setDescription("Post a support ticket panel").setDefaultMemberPermissions(admin),
+ new SlashCommandBuilder().setName("suggestionreview").setDescription("Review a suggestion").setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages)
+   .addStringOption(o=>o.setName("id").setDescription("Suggestion ID").setRequired(true))
+   .addStringOption(o=>o.setName("decision").setDescription("Decision").setRequired(true).addChoices({name:"Approve",value:"approved"},{name:"Deny",value:"denied"}))
+   .addStringOption(o=>o.setName("note").setDescription("Optional review note").setMaxLength(500)),
+ new SlashCommandBuilder().setName("warn").setDescription("Warn a member").setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
+   .addUserOption(o=>o.setName("user").setDescription("Member to warn").setRequired(true))
+   .addStringOption(o=>o.setName("reason").setDescription("Reason").setRequired(true).setMaxLength(500)),
+ new SlashCommandBuilder().setName("warnings").setDescription("List a member's warnings").setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
+   .addUserOption(o=>o.setName("user").setDescription("Member").setRequired(true)),
+ new SlashCommandBuilder().setName("timeout").setDescription("Timeout a member").setDefaultMemberPermissions(mod)
+   .addUserOption(o=>o.setName("user").setDescription("Member").setRequired(true))
+   .addIntegerOption(o=>o.setName("minutes").setDescription("Duration in minutes").setRequired(true).setMinValue(1).setMaxValue(40320))
+   .addStringOption(o=>o.setName("reason").setDescription("Reason").setMaxLength(500)),
+ new SlashCommandBuilder().setName("untimeout").setDescription("Remove a member timeout").setDefaultMemberPermissions(mod)
+   .addUserOption(o=>o.setName("user").setDescription("Member").setRequired(true)),
+ new SlashCommandBuilder().setName("kick").setDescription("Kick a member").setDefaultMemberPermissions(PermissionFlagsBits.KickMembers)
+   .addUserOption(o=>o.setName("user").setDescription("Member").setRequired(true))
+   .addStringOption(o=>o.setName("reason").setDescription("Reason").setMaxLength(500)),
+ new SlashCommandBuilder().setName("ban").setDescription("Ban a member").setDefaultMemberPermissions(PermissionFlagsBits.BanMembers)
+   .addUserOption(o=>o.setName("user").setDescription("Member").setRequired(true))
+   .addStringOption(o=>o.setName("reason").setDescription("Reason").setMaxLength(500)),
+ new SlashCommandBuilder().setName("purge").setDescription("Delete recent messages").setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages)
+   .addIntegerOption(o=>o.setName("amount").setDescription("Number of messages (1-100)").setRequired(true).setMinValue(1).setMaxValue(100)),
+ new SlashCommandBuilder().setName("lock").setDescription("Lock this text channel").setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels),
+ new SlashCommandBuilder().setName("unlock").setDescription("Unlock this text channel").setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels),
+ new SlashCommandBuilder().setName("slowmode").setDescription("Set this channel's slowmode").setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels)
+   .addIntegerOption(o=>o.setName("seconds").setDescription("Seconds (0 disables)").setRequired(true).setMinValue(0).setMaxValue(21600)),
+ new SlashCommandBuilder().setName("nickname").setDescription("Set a member's nickname").setDefaultMemberPermissions(PermissionFlagsBits.ManageNicknames)
+   .addUserOption(o=>o.setName("user").setDescription("Member").setRequired(true))
+   .addStringOption(o=>o.setName("nickname").setDescription("New nickname; blank not supported").setRequired(true).setMaxLength(32)),
+ new SlashCommandBuilder().setName("roleadd").setDescription("Give a role to a member").setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles)
+   .addUserOption(o=>o.setName("user").setDescription("Member").setRequired(true))
+   .addRoleOption(o=>o.setName("role").setDescription("Role").setRequired(true)),
+ new SlashCommandBuilder().setName("roleremove").setDescription("Remove a role from a member").setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles)
+   .addUserOption(o=>o.setName("user").setDescription("Member").setRequired(true))
+   .addRoleOption(o=>o.setName("role").setDescription("Role").setRequired(true)),
+ new SlashCommandBuilder().setName("announce").setDescription("Send an announcement to a channel").setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages)
+   .addChannelOption(o=>o.setName("channel").setDescription("Target text channel").setRequired(true).addChannelTypes(ChannelType.GuildText,ChannelType.GuildAnnouncement))
+   .addStringOption(o=>o.setName("message").setDescription("Announcement text").setRequired(true).setMaxLength(1800))
+].map(data=>({data}));
+export { commands };
