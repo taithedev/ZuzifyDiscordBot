@@ -57,7 +57,8 @@ async function createTicket(i:ButtonInteraction){
   permissionOverwrites:[
    {id:i.guild.roles.everyone.id,deny:[PermissionFlagsBits.ViewChannel]},
    {id:i.user.id,allow:[PermissionFlagsBits.ViewChannel,PermissionFlagsBits.SendMessages,PermissionFlagsBits.ReadMessageHistory,PermissionFlagsBits.AttachFiles]},
-   {id:client.user!.id,allow:[PermissionFlagsBits.ViewChannel,PermissionFlagsBits.SendMessages,PermissionFlagsBits.ManageChannels,PermissionFlagsBits.ReadMessageHistory]}
+   {id:client.user!.id,allow:[PermissionFlagsBits.ViewChannel,PermissionFlagsBits.SendMessages,PermissionFlagsBits.ManageChannels,PermissionFlagsBits.ReadMessageHistory]},
+   ...i.guild.roles.cache.filter(role=>role.id!==i.guild!.roles.everyone.id&&role.permissions.has(PermissionFlagsBits.ManageChannels)).map(role=>({id:role.id,allow:[PermissionFlagsBits.ViewChannel,PermissionFlagsBits.SendMessages,PermissionFlagsBits.ReadMessageHistory]}))
   ]
  }).catch(async err=>{console.error(err);await i.editReply("I couldn't create a ticket channel. Check Manage Channels permission.");return null;});
  if(!channel) return;
