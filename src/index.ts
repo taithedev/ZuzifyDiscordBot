@@ -331,7 +331,7 @@ client.on(Events.MessageCreate,async message=>{
   const {error}=await db.from("bot_members").upsert({guild_id:message.guild.id,discord_user_id:message.author.id,username:message.author.username,display_name:message.member?.displayName||message.author.username,xp:newXp,level:newLevel,message_count:Number(current?.message_count||0)+1,last_seen_at:new Date().toISOString()},{onConflict:"guild_id,discord_user_id"});
   if(error) console.error("XP update failed:",error.message);
   if(newLevel>Number(current?.level||0)){
-   if(message.channel.isTextBased()&&"send" in message.channel) await message.channel.send({embeds:[embed("Level up!",`<@${message.author.id}> reached level **${newLevel}**.`,colors.good)]}).catch(()=>null);
+   if(message.channel.isTextBased()) await message.channel.send({embeds:[embed("Level up!",`<@${message.author.id}> reached level **${newLevel}**.`,colors.good)]}).catch(()=>null);
    const roleId=await getSetting(message.guild.id,`rank_role_${newLevel}`);
    if(roleId&&message.member) await message.member.roles.add(roleId).catch(()=>null);
    await logEvent(message.guild.id,message.author.id,"level_up",{level:newLevel,xp:newXp});
