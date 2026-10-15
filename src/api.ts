@@ -57,7 +57,8 @@ export function startApi(){
     const path=`${guildId}/${userId}/${randomUUID()}.${ext}`;
     const {data,error}=await db.storage.from(bucket).createSignedUploadUrl(path);
     if(error){console.error("Storage signed upload URL failed:",error.message);return send(res,500,{error:"Could not create upload URL. Check Storage bucket setup."});}
-    return send(res,201,{bucket,path,token:data.token,signedUrl:data.signedUrl,contentType,expiresInSeconds:7200});
+    const signedUrl=data.signedUrl.startsWith("http")?data.signedUrl:`${config.supabaseUrl.replace(/\\/$/,"")}/storage/v1${data.signedUrl.startsWith("/")?data.signedUrl:`/${data.signedUrl}`}`;
+    return send(res,201,{bucket,path,token:data.token,signedUrl,contentType,expiresInSeconds:7200});
    }
    return send(res,404,{error:"Endpoint not found"});
   }catch(error){
