@@ -129,6 +129,20 @@ async function handleCommand(i:ChatInputCommandInteraction){
   await logEvent(guild.id,i.user.id,"setup_completed");
   return i.editReply("Setup complete. Default rank roles and XP settings are configured. Use /rankconfig to adjust them.");
  }
+ if(name==="configchannel"){
+  const purpose=i.options.getString("purpose",true),channel=i.options.getChannel("channel",true);
+  if(!channel.isTextBased()) return reply(i,"Choose a text channel.");
+  await setSetting(guild.id,purpose,channel.id);
+  return reply(i,`Saved <#${channel.id}> as the ${purpose.replace("_channel","")} channel.`);
+ }
+ if(name==="rankrole"){
+  const level=i.options.getInteger("level",true),role=i.options.getRole("role",true);
+  if(role.managed||!guild.members.me||role.position>=guild.members.me.roles.highest.position) return reply(i,"That role is managed or above the bot's highest role.");
+  await setSetting(guild.id,`rank_role_${level}`,role.id);
+  const {error}=await db.from("bot_rank_roles").upsert({guild_id:guild.id,level,role_id:role.id},{onConflict:"guild_id,level"});
+  if(error) throw new Error(error.message);
+  return reply(i,`Configured ${role} as the reward for level ${level}.`);
+ }
  if(name==="rankconfig"){
   const min=i.options.getInteger("xp_min"),max=i.options.getInteger("xp_max"),cool=i.options.getInteger("cooldown"),step=i.options.getInteger("level_step");
   if(min!==null) await setSetting(guild.id,"xp_min",String(min));
@@ -281,10 +295,13 @@ client.on(Events.InteractionCreate,async (raw:Interaction)=>{
    if(i.customId==="ticket:open") await createTicket(i);
    else if(i.customId==="ticket:close"){
     if(!i.guild||!i.channel||!i.channel.isTextBased()) return reply(i,"Cannot close this ticket here.");
-    if(!i.memberPermissions?.has(PermissionFlagsBits.ManageChannels)&&!i.channel.permissionsFor(i.user)?.has(PermissionFlagsBits.ManageChannels)&&!i.channel.name.includes(i.user.username.toLowerCase())) return reply(i,"Only the ticket opener or staff can close this ticket.");
+    const ticket=await db.from("bot_tickets").select("discord_user_id").eq("guild_id",i.guild.id).eq("channel_id",i.channel.id).eq("status","open").maybeSingle();
+    const staff=i.memberPermissions?.has(PermissionFlagsBits.ManageChannels)??false;
+    if(!staff&&ticket.data?.discord_user_id!==i.user.id) return reply(i,"Only the ticket opener or staff can close this ticket.");
     await i.reply({content:"Ticket closed. This channel will be removed in 5 seconds.",ephemeral:true});
     await db.from("bot_tickets").update({status:"closed",closed_at:new Date().toISOString()}).eq("guild_id",i.guild.id).eq("channel_id",i.channel.id);
-    setTimeout(()=>{if(i.channel?.isTextBased()&&"delete" in i.channel) void i.channel.delete("Ticket closed").catch(()=>null);},5000);
+    const channelToDelete=i.channel;
+    setTimeout(()=>{void channelToDelete.delete("Ticket closed").catch(()=>null);},5000);
    }else if(i.customId.startsWith("account:")) await openModal(i,i.customId,i.customId.endsWith("signup")?"Create Zuzify account":"Sign in to Zuzify account",[{id:"username",label:"Username",max:24},{id:"password",label:"Unique passphrase",style:TextInputStyle.Paragraph,max:120}]);
    else if(i.customId==="form:suggest") await openModal(i,i.customId,"Submit a suggestion",[{id:"title",label:"Suggestion title",max:100},{id:"details",label:"Explain your idea",style:TextInputStyle.Paragraph,max:1500}]);
    else if(i.customId==="form:report") await openModal(i,i.customId,"Submit a private report",[{id:"subject",label:"Report subject",max:100},{id:"details",label:"What happened?",style:TextInputStyle.Paragraph,max:1500}]);
