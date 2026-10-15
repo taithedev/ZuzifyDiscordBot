@@ -56,7 +56,7 @@ export function startApi(){
     const ext=filename.includes(".")?filename.split(".").pop()!.toLowerCase().replace(/[^a-z0-9]/g,"").slice(0,10):"bin";
     const path=`${guildId}/${userId}/${randomUUID()}.${ext}`;
     const {data,error}=await db.storage.from(bucket).createSignedUploadUrl(path);
-    if(error){console.error("Storage signed upload URL failed:",error.message);return send(res,500,{error:"Could not create upload URL. Check Storage bucket setup."});}
+    if(error||!data){console.error("Storage signed upload URL failed:",error?.message);return send(res,500,{error:"Could not create upload URL. Check Storage bucket setup."});}
     const base=config.supabaseUrl.endsWith("/")?config.supabaseUrl.slice(0,-1):config.supabaseUrl;
     return send(res,201,{bucket,path,token:data.token,signedUrl:data.signedUrl.startsWith("http")?data.signedUrl:base+"/storage/v1"+(data.signedUrl.startsWith("/")?data.signedUrl:"/"+data.signedUrl),contentType,expiresInSeconds:7200});
    }
@@ -68,7 +68,7 @@ export function startApi(){
     if(pathParts.length!==3||!numeric(pathParts[0])||!numeric(pathParts[1])||!pathParts[2]||pathParts[2].length>180||![...pathParts[2]].every(ch=>/[A-Za-z0-9._-]/.test(ch))) return send(res,400,{error:"Invalid private object path"});
     if(!Number.isInteger(expiresIn)||expiresIn<60||expiresIn>3600) return send(res,400,{error:"expiresInSeconds must be between 60 and 3600"});
     const {data,error}=await db.storage.from(bucket).createSignedUrl(path,expiresIn);
-    if(error){console.error("Storage signed download URL failed:",error.message);return send(res,404,{error:"File not found or could not create download URL"});}
+    if(error||!data){console.error("Storage signed download URL failed:",error?.message);return send(res,404,{error:"File not found or could not create download URL"});}
     const base=config.supabaseUrl.endsWith("/")?config.supabaseUrl.slice(0,-1):config.supabaseUrl;
     return send(res,200,{bucket,path,signedUrl:base+"/storage/v1"+(data.signedUrl.startsWith("/")?data.signedUrl:"/"+data.signedUrl),expiresInSeconds:expiresIn});
    }
