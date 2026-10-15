@@ -9,6 +9,7 @@ import {config} from "./config.js";
 import {db,logEvent,touchMember,getSetting,setSetting} from "./db.js";
 import {askGroq} from "./ai.js";
 import {commands} from "./commands.js";
+import {startApi} from "./api.js";
 const scrypt=promisify(scryptCallback);
 const client=new Client({intents:[GatewayIntentBits.Guilds,GatewayIntentBits.GuildMembers,GatewayIntentBits.GuildMessages]});
 const colors={brand:0x7458e8,good:0x35b779,bad:0xe05252};
@@ -349,4 +350,5 @@ client.once(Events.ClientReady,ready=>{
 });
 process.on("unhandledRejection",error=>console.error("Unhandled rejection:",error));
 process.on("uncaughtException",error=>{console.error("Uncaught exception:",error);});
+startApi();
 await client.login(config.token);
