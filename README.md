@@ -9,7 +9,7 @@ Standalone Discord bot for the Zuzify ecosystem. It does not depend on ZuzifySoc
 - Modal-based forms for signup, login, suggestions, reports, support tickets and custom applications
 - Moderation: warn, timeout, kick, ban, purge, lock/unlock, slowmode, nickname, role add/remove and announce
 - Community tools: profile, leaderboard, server stats, polls, tickets, suggestion review and reports
-- Optional Groq AI assistant
+- Groq-powered AI assistant plus autonomous conversation starters in a configured general channel
 - Private Supabase Storage bucket for attachments, with expiring signed upload URLs
 - Protected HTTP API for health, guild statistics, member profiles, and upload URL issuance
 - Passwords hashed with scrypt; no plain-text password storage
@@ -20,7 +20,8 @@ Standalone Discord bot for the Zuzify ecosystem. It does not depend on ZuzifySoc
 3. In Discord Developer Portal enable Server Members Intent. Invite the bot with bot and applications.commands scopes and only required permissions.
 4. On Railway, use build command `npm install && npm run build` and start command `npm start`. The start script now registers the slash commands before launching the bot. For instant commands in one test server, set `DISCORD_GUILD_ID` to that server's ID; otherwise commands register globally and may take a while to appear. You can also run `npm run check` before deploying.
 5. Set `BOT_API_KEY` to a long random secret and `BOT_API_PORT` (usually the host-provided `PORT`). The API is disabled except for `/health` until `BOT_API_KEY` is set. Add `GROQ_API_KEY` when ready.
-6. Deploy on a persistent Node.js worker/service, not static hosting.
+6. Set AI_CHAT_CHANNEL_ID to your general channel ID (default: 1559366764972871780). The bot posts a conversation starter after 15 quiet minutes, then no more often than every 45 minutes. Set AI_CHAT_ENABLED=false to disable it. Ensure the bot has View Channel and Send Messages permissions there.
+7. Deploy on a persistent Node.js worker/service, not static hosting.
 
 ## First-time server setup
 - /setup creates default rank roles and configures logging.
