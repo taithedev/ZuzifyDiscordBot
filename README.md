@@ -22,7 +22,8 @@ Standalone Discord bot for the Zuzify ecosystem. It does not depend on ZuzifySoc
 
 ## First-time server setup
 - /setup creates default rank roles and configures logging.
-- /rankconfig sets XP settings and role rewards.
+- /rankconfig sets XP settings and /rankrole maps a level to a Discord role.
+- /configchannel configures the log, suggestion, report, application, and ticket channels.
 - /formpanel posts buttons that open Discord modal forms.
 - /ticketpanel posts a support ticket panel.
 - /help lists command groups.
