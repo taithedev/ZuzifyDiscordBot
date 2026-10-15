@@ -133,8 +133,9 @@ async function handleCommand(i:ChatInputCommandInteraction){
  }
  if(name==="configchannel"){
   const purpose=i.options.getString("purpose",true),channel=i.options.getChannel("channel",true);
-  if(!channel.isTextBased()) return reply(i,"Choose a text channel.");
-  await setSetting(guild.id,purpose,channel.id);
+  const textChannel=channel as TextChannel;
+  if(typeof textChannel.send!=="function") return reply(i,"Choose a text channel.");
+  await setSetting(guild.id,purpose,textChannel.id);
   return reply(i,`Saved <#${channel.id}> as the ${purpose.replace("_channel","")} channel.`);
  }
  if(name==="rankrole"){
@@ -240,13 +241,14 @@ async function handleCommand(i:ChatInputCommandInteraction){
  if(name==="roleadd"||name==="roleremove"){
   const user=i.options.getUser("user",true),role=i.options.getRole("role",true),member=await guild.members.fetch(user.id);
   if(role.managed||role.position>=guild.members.me!.roles.highest.position) return reply(i,"That role is managed or above the bot's highest role.");
-  if(name==="roleadd") await member.roles.add(role); else await member.roles.remove(role);
+  if(name==="roleadd") await member.roles.add(role.id); else await member.roles.remove(role.id);
   return reply(i,`${role.name} ${name==="roleadd"?"added to":"removed from"} ${user.username}.`);
  }
  if(name==="announce"){
   const ch=i.options.getChannel("channel",true),message=i.options.getString("message",true);
-  if(!ch.isTextBased()) return reply(i,"Choose a text channel.");
-  await ch.send({embeds:[embed("Zuzify Announcement",message)]});
+  const textChannel=ch as TextChannel;
+  if(typeof textChannel.send!=="function") return reply(i,"Choose a text channel.");
+  await textChannel.send({embeds:[embed("Zuzify Announcement",message)]});
   return reply(i,"Announcement sent.");
  }
  return reply(i,"That command is not implemented yet.");
