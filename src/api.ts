@@ -60,6 +60,17 @@ export function startApi(){
     const signedUrl=data.signedUrl.startsWith("http")?data.signedUrl:`${config.supabaseUrl.replace(/\\/$/,"")}/storage/v1${data.signedUrl.startsWith("/")?data.signedUrl:`/${data.signedUrl}`}`;
     return send(res,201,{bucket,path,token:data.token,signedUrl,contentType,expiresInSeconds:7200});
    }
+   if(req.method==="POST"&&parts.length===4&&parts[2]==="storage"&&parts[3]==="download-url"){
+    const body=await readJson(req);
+    const path=String(body.path||"");
+    const expiresIn=Number(body.expiresInSeconds??900);
+    if(!/^\\d{5,25}\\/\\d{5,25}\\/[A-Za-z0-9._-]{1,180}$/.test(path)) return send(res,400,{error:"Invalid private object path"});
+    if(!Number.isInteger(expiresIn)||expiresIn<60||expiresIn>3600) return send(res,400,{error:"expiresInSeconds must be between 60 and 3600"});
+    const {data,error}=await db.storage.from(bucket).createSignedUrl(path,expiresIn);
+    if(error){console.error("Storage signed download URL failed:",error.message);return send(res,404,{error:"File not found or could not create download URL"});}
+    const signedUrl=data.signedUrl.startsWith("http")?data.signedUrl:`${config.supabaseUrl.replace(/\\/$/,"")}/storage/v1${data.signedUrl.startsWith("/")?data.signedUrl:`/${data.signedUrl}`}`;
+    return send(res,200,{bucket,path,signedUrl,expiresInSeconds:expiresIn});
+   }
    return send(res,404,{error:"Endpoint not found"});
   }catch(error){
    console.error("API request error:",error);
