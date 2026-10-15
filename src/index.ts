@@ -90,7 +90,7 @@ async function memberData(guildId:string,userId:string){
 async function handleCommand(i:ChatInputCommandInteraction){
  const name=i.commandName;
  const guild=i.guild;
- if(guild) await touchMember(guild.id,i.user);
+ if(guild) void touchMember(guild.id,i.user).catch(error=>console.error("Member tracking failed:",error));
  if(name==="help"){
   return i.reply({embeds:[embed("Zuzify Bot — Commands","**General**\n/help · /ping · /about · /serverstats · /profile · /rank · /leaderboard · /ai\n\n**Accounts and forms**\n/signup · /login · /formpanel · /application · /suggest · /report\n\n**Community**\n/poll · /ticketpanel · /suggestionreview\n\n**Ranks**\n/setup · /rankconfig\n\n**Moderation**\n/warn · /warnings · /timeout · /untimeout · /kick · /ban · /purge · /lock · /unlock · /slowmode · /nickname · /roleadd · /roleremove · /announce")],ephemeral:true});
  }
