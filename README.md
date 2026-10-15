@@ -18,7 +18,7 @@ Standalone Discord bot for the Zuzify ecosystem. It does not depend on ZuzifySoc
 1. Copy .env.example to .env and fill in Discord token, client ID, Supabase URL and service-role key. Never commit .env or expose the service key.
 2. The bot database tables are already present in the connected `ZuzifyDiscordBot` Supabase project. The Storage bucket migration `002_zuzify_private_storage.sql` has also been applied. For a fresh project, run migrations `001` then `002`.
 3. In Discord Developer Portal enable Server Members Intent. Invite the bot with bot and applications.commands scopes and only required permissions.
-4. Run npm install, npm run check, npm run commands, npm run build, npm start.
+4. On Railway, use build command `npm install && npm run build` and start command `npm start`. The start script now registers the slash commands before launching the bot. For instant commands in one test server, set `DISCORD_GUILD_ID` to that server's ID; otherwise commands register globally and may take a while to appear. You can also run `npm run check` before deploying.
 5. Set `BOT_API_KEY` to a long random secret and `BOT_API_PORT` (usually the host-provided `PORT`). The API is disabled except for `/health` until `BOT_API_KEY` is set. Add `GROQ_API_KEY` when ready.
 6. Deploy on a persistent Node.js worker/service, not static hosting.
 
