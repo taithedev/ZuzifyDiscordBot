@@ -245,7 +245,7 @@ async function handleCommand(i:ChatInputCommandInteraction){
  }
  if(name==="announce"){
   const ch=i.options.getChannel("channel",true),message=i.options.getString("message",true);
-  if(!ch.isTextBased()||!("send" in ch)) return reply(i,"Choose a text channel.");
+  if(!ch.isTextBased()) return reply(i,"Choose a text channel.");
   await ch.send({embeds:[embed("Zuzify Announcement",message)]});
   return reply(i,"Announcement sent.");
  }
