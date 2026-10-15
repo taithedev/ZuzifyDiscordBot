@@ -94,6 +94,7 @@ async function handleCommand(i:ChatInputCommandInteraction){
  }
  if(name==="ping") return i.reply({embeds:[embed("Pong",`Gateway ping: ${client.ws.ping} ms\nRound-trip: ${Date.now()-i.createdTimestamp} ms`)],ephemeral:true});
  if(name==="about") return i.reply({embeds:[embed("Zuzify Discord Bot","A standalone community bot for the Zuzify app ecosystem. Includes persistent profiles, forms, rank rewards, moderation tools and optional Groq AI.")],ephemeral:true});
+ if((name==="suggest"||name==="report"||name==="application")&&!guild) return reply(i,"Use this form inside your Discord server.");
  if(name==="signup") return openModal(i,"account:signup","Create Zuzify account",[{id:"username",label:"Username",placeholder:"3–24 letters, numbers or underscores",max:24},{id:"password",label:"Unique passphrase (never reuse a real password)",style:TextInputStyle.Paragraph,max:120}]);
  if(name==="login") return openModal(i,"account:login","Sign in to Zuzify account",[{id:"username",label:"Account username",max:24},{id:"password",label:"Account passphrase",style:TextInputStyle.Paragraph,max:120}]);
  if(name==="suggest") return openModal(i,"form:suggest","Submit a suggestion",[{id:"title",label:"Suggestion title",max:100},{id:"details",label:"Explain your idea",style:TextInputStyle.Paragraph,max:1500}]);
@@ -106,7 +107,6 @@ async function handleCommand(i:ChatInputCommandInteraction){
  }
  if(!guild) return reply(i,"This command must be used in a server.");
  if(name==="serverstats"){
-  const m=await guild.members.fetch().catch(()=>guild.members.cache);
   const {count}=await db.from("bot_members").select("*",{count:"exact",head:true}).eq("guild_id",guild.id);
   return i.reply({embeds:[embed(`${guild.name} — Server stats`,`Members: ${guild.memberCount}\nChannels: ${guild.channels.cache.size}\nRoles: ${guild.roles.cache.size}\nBot-tracked profiles: ${count??0}\nCreated: <t:${Math.floor(guild.createdTimestamp/1000)}:D>`)]});
  }
