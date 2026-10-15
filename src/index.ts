@@ -87,6 +87,41 @@ async function memberData(guildId:string,userId:string){
  if(error) throw new Error(error.message);
  return data;
 }
+const lastHumanMessageAt=new Map<string,number>();
+let lastAutonomousPostAt=0;
+
+async function autonomousChatTick(){
+ if(!config.aiChatEnabled||!config.groqApiKey||!config.aiChatChannelId) return;
+ const now=Date.now();
+ if(now-lastAutonomousPostAt<config.aiChatIntervalMinutes*60_000) return;
+ const channel=await client.channels.fetch(config.aiChatChannelId).catch(error=>{
+  console.error("Autonomous AI channel lookup failed:",error instanceof Error?error.message:error);
+  return null;
+ });
+ if(!channel?.isTextBased()||!("send" in channel)){
+  console.error("Autonomous AI channel is missing or is not a sendable text channel:",config.aiChatChannelId);
+  return;
+ }
+ const lastHuman=lastHumanMessageAt.get(config.aiChatChannelId)??now;
+ if(now-lastHuman<config.aiChatIdleMinutes*60_000) return;
+ lastAutonomousPostAt=now;
+ const prompt="Write one short, natural Discord message to start a conversation in the Zuzify community while the chat is quiet. Make it feel like a real community member, not a system announcement. Vary the topic between technology, games, creative projects, app ideas, and light everyday conversation. Use at most 2 sentences, preferably one open-ended question. Do not mention inactivity, schedules, or that you are an AI. Do not use @everyone/@here, mass mentions, or markdown headings. Return only the message.";
+ const answer=(await askGroq(prompt)).trim();
+ const failures=["AI is not configured","Groq rejected","Groq rate limit","Groq is temporarily","Groq returned","Zuzify AI could not","The AI provider timed out","The configured Groq model"];
+ if(!answer||failures.some(marker=>answer.includes(marker))){
+  console.error("Autonomous AI skipped because the provider did not return a usable message.");
+  lastAutonomousPostAt=0;
+  return;
+ }
+ try{
+  await (channel as TextChannel).send({content:answer.slice(0,1800),allowedMentions:{parse:[]}});
+  console.log("Autonomous AI conversation starter sent to channel",config.aiChatChannelId);
+ }catch(error){
+  console.error("Autonomous AI send failed; check View Channel and Send Messages permissions:",error);
+  lastAutonomousPostAt=0;
+ }
+}
+
 async function handleCommand(i:ChatInputCommandInteraction){
  const name=i.commandName;
  const guild=i.guild;
@@ -317,6 +352,7 @@ client.on(Events.InteractionCreate,async (raw:Interaction)=>{
  }
 });
 client.on(Events.MessageCreate,async message=>{
+ if(message.guild&&!message.author.bot&&message.channelId===config.aiChatChannelId) lastHumanMessageAt.set(message.channelId,Date.now());
  if(!message.guild||message.author.bot) return;
  try{
   await touchMember(message.guild.id,{id:message.author.id,username:message.author.username,globalName:message.author.globalName,avatarURL:()=>message.author.displayAvatarURL()});
@@ -349,6 +385,12 @@ client.on(Events.GuildMemberRemove,async member=>{
 client.once(Events.ClientReady,ready=>{
  console.log(`Logged in as ${ready.user.tag}`);
  ready.user.setPresence({activities:[{name:config.status,type:ActivityType.Playing}],status:"online"});
+ if(config.aiChatEnabled&&config.aiChatChannelId){
+  lastHumanMessageAt.set(config.aiChatChannelId,Date.now());
+  const timer=setInterval(()=>{void autonomousChatTick().catch(error=>console.error("Autonomous AI tick failed:",error));},60_000);
+  timer.unref?.();
+  console.log(`Autonomous AI enabled for channel ${config.aiChatChannelId}; idle threshold ${config.aiChatIdleMinutes}m, repeat interval ${config.aiChatIntervalMinutes}m`);
+ }
 });
 process.on("unhandledRejection",error=>console.error("Unhandled rejection:",error));
 process.on("uncaughtException",error=>{console.error("Uncaught exception:",error);});
