@@ -62,3 +62,19 @@ curl -X POST "http://localhost:3000/api/v1/storage/upload-url" \
 ```
 
 The response includes the private bucket name, object path, upload token, absolute signed URL and content type. Signed URLs expire; do not publish them. Allowed uploads are PNG, JPEG, WebP, GIF, PDF, plain text and JSON, up to 10 MB. Upload URLs should only be issued to trusted backend callers.
+
+## Ecosystem announcements (new)
+
+This repo now supports **/ecosystem**, **/latestnews**, and **/ecosystemannounce**. The new `public.bot_announcements` table stores messages for all Zuzify services. Run the SQL migration in a fresh Supabase project, or use the connected database where it was applied.
+
+1. In the bot host's private environment, set `SUPABASE_URL=https://wfqudstuncdldsvxqveu.supabase.co` and `SUPABASE_SERVICE_ROLE_KEY` to the **secret** service role key from this same project. The URL is not a secret; the key is. Do **not** publish the key in the repository or either website.
+2. Set `BOT_API_KEY` to a random server-side secret. It protects all `/api/v1/*` routes. Restart/redeploy the bot host after changing variables.
+3. Use `/ecosystemannounce` (requires Manage Server) to post to Discord and store the announcement in Supabase. The destination becomes the permitted announcement channel for authenticated API requests in that guild.
+4. A trusted ZuzuOS or Zuzify Socials **server** may call `GET /api/v1/announcements?limit=20` or `POST /api/v1/announcements` with `Authorization: Bearer BOT_API_KEY`. Example POST JSON: `{"guildId":"YOUR_GUILD_ID","source":"zuzuos","title":"Update","body":"A new update is live.","channelId":"YOUR_CONFIGURED_ANNOUNCEMENT_CHANNEL_ID"}`.
+5. To show news on the websites, create a server-side integration or a narrow read-only endpoint that forwards the latest approved announcements. The current bot API requires a secret bearer token; never call it directly from public browser JavaScript. Web display widgets are **not** automatically installed on the websites by these bot-repository changes.
+
+An announcement can be saved without sending to Discord by omitting `channelId`. Discord and database writes are sequential; if Discord succeeds and database storage fails, the operation reports an error and may require reconciliation. API clients should avoid blind retries that could duplicate posts.
+
+### Health and verification
+
+`GET /health` checks the HTTP process only, not its database access. Use `/latestnews` or a protected announcement query to test the actual Supabase connection. Deployment depends on the external bot host pulling the new GitHub commit; a GitHub commit alone does not guarantee the running bot is updated.
