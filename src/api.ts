@@ -2,6 +2,7 @@ import {createServer, type IncomingMessage, type ServerResponse} from "node:http
 import {randomUUID,timingSafeEqual} from "node:crypto";
 import {config} from "./config.js";
 import {db} from "./db.js";
+import {latestAnnouncements,publishAnnouncement} from "./ecosystem.js";
 
 const bucket="zuzify-private";
 const allowedTypes=new Set(["image/png","image/jpeg","image/webp","image/gif","application/pdf","text/plain","application/json"]);
@@ -30,6 +31,23 @@ export function startApi(){
   if(!authorized(req)) return send(res,401,{error:"Missing or invalid API bearer token"});
   try{
    const parts=url.pathname.split("/").filter(Boolean).map(decodeURIComponent);
+   if(req.method==="GET"&&url.pathname==="/api/v1/announcements") {
+    return send(res,200,{announcements:await latestAnnouncements(Number(url.searchParams.get("limit")||20))});
+   }
+   if(req.method==="POST"&&url.pathname==="/api/v1/announcements") {
+    const body=await readJson(req);
+    const guildId=String(body.guildId||"");
+    const source=String(body.source||"api");
+    if(!["api","zuzuos","zuzifysocials"].includes(source)) return send(res,400,{error:"Invalid source"});
+    const channelId=String(body.channelId||"");
+    // An API caller cannot send to arbitrary Discord channels.
+    if(channelId) {
+     const {data,error}=await db.from("bot_settings").select("value").eq("guild_id",guildId).eq("key","announcement_channel").maybeSingle();
+     if(error||data?.value!==channelId) return send(res,403,{error:"Channel not configured for announcements"});
+    }
+    const result=await publishAnnouncement({guildId,title:String(body.title||""),body:String(body.body||""),source:source as "api"|"zuzuos"|"zuzifysocials",createdBy:"api",channelId:channelId||undefined});
+    return send(res,201,{announcement:result});
+   }
    if(req.method==="GET"&&parts.length===5&&parts[2]==="guilds"&&parts[4]==="stats"){
     const guildId=parts[3];
     const [{count:members},{count:events},{count:openTickets},{count:forms}] = await Promise.all([
