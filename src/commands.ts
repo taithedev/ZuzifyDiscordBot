@@ -5,6 +5,12 @@ const mod = PermissionFlagsBits.ModerateMembers;
 const commands = [
  new SlashCommandBuilder().setName("help").setDescription("Show bot commands"),
  new SlashCommandBuilder().setName("ping").setDescription("Check bot latency"),
+ new SlashCommandBuilder().setName("ecosystem").setDescription("Show connected Zuzify services"),
+ new SlashCommandBuilder().setName("latestnews").setDescription("Read recent ecosystem announcements"),
+ new SlashCommandBuilder().setName("ecosystemannounce").setDescription("Publish an ecosystem-wide announcement").setDefaultMemberPermissions(admin)
+   .addChannelOption(o=>o.setName("channel").setDescription("Discord destination").setRequired(true).addChannelTypes(ChannelType.GuildText,ChannelType.GuildAnnouncement))
+   .addStringOption(o=>o.setName("title").setDescription("Headline").setRequired(true).setMaxLength(150))
+   .addStringOption(o=>o.setName("message").setDescription("Announcement content").setRequired(true).setMaxLength(1800)),
  new SlashCommandBuilder().setName("about").setDescription("About Zuzify Bot"),
  new SlashCommandBuilder().setName("serverstats").setDescription("Show server statistics"),
  new SlashCommandBuilder().setName("profile").setDescription("Show your or another member's profile").addUserOption(o=>o.setName("user").setDescription("Member to inspect")),
