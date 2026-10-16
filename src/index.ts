@@ -10,6 +10,7 @@ import {db,logEvent,touchMember,getSetting,setSetting} from "./db.js";
 import {askGroq} from "./ai.js";
 import {commands} from "./commands.js";
 import {startApi} from "./api.js";
+import {latestAnnouncements,publishAnnouncement} from "./ecosystem.js";
 const scrypt=promisify(scryptCallback);
 const client=new Client({intents:[GatewayIntentBits.Guilds,GatewayIntentBits.GuildMembers,GatewayIntentBits.GuildMessages]});
 const colors={brand:0x7458e8,good:0x35b779,bad:0xe05252};
@@ -126,8 +127,23 @@ async function handleCommand(i:ChatInputCommandInteraction){
  const name=i.commandName;
  const guild=i.guild;
  if(guild) void touchMember(guild.id,i.user).catch(error=>console.error("Member tracking failed:",error));
+ if(name==="ecosystem") return i.reply({embeds:[embed("Zuzify Ecosystem","Connected services: ZuzuOS (zuzuos.lol), Zuzify Socials, and the Zuzify Discord Bot. Announcements are backed by Supabase.")],ephemeral:true});
+ if(name==="latestnews") {
+  await i.deferReply({ephemeral:true});
+  const announcements=await latestAnnouncements(5);
+  return i.editReply({embeds:[embed("Ecosystem announcements",announcements.map(a=>`**${a.title}** — ${a.source}\\n${a.body.slice(0,300)}`).join("\\n\\n")||"No announcements yet.")]});
+ }
+ if(name==="ecosystemannounce") {
+  if(!i.guildId||!i.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) return reply(i,"Manage Server permission is required.");
+  await i.deferReply({ephemeral:true});
+  const channel=i.options.getChannel("channel",true);
+  const title=i.options.getString("title",true),body=i.options.getString("message",true);
+  const result=await publishAnnouncement({guildId:i.guildId,title,body,source:"discord",createdBy:i.user.id,channelId:channel.id});
+  await setSetting(i.guildId,"announcement_channel",channel.id);
+  return i.editReply(`Announcement published to Discord and stored for the Zuzify websites. ID: ${result.id}`);
+ }
  if(name==="help"){
-  return i.reply({embeds:[embed("Zuzify Bot — Commands","**General**\n/help · /ping · /about · /serverstats · /profile · /rank · /leaderboard · /ai\n\n**Accounts and forms**\n/signup · /login · /formpanel · /application · /suggest · /report\n\n**Community**\n/poll · /ticketpanel · /suggestionreview\n\n**Ranks**\n/setup · /rankconfig\n\n**Moderation**\n/warn · /warnings · /timeout · /untimeout · /kick · /ban · /purge · /lock · /unlock · /slowmode · /nickname · /roleadd · /roleremove · /announce")],ephemeral:true});
+  return i.reply({embeds:[embed("Zuzify Bot — Commands","**General**\n/help · /ping · /about · /ecosystem · /latestnews · /serverstats · /profile · /rank · /leaderboard · /ai\n\n**Accounts and forms**\n/signup · /login · /formpanel · /application · /suggest · /report\n\n**Community**\n/poll · /ticketpanel · /suggestionreview\n\n**Ranks**\n/setup · /rankconfig\n\n**Moderation**\n/warn · /warnings · /timeout · /untimeout · /kick · /ban · /purge · /lock · /unlock · /slowmode · /nickname · /roleadd · /roleremove · /announce · /ecosystemannounce")],ephemeral:true});
  }
  if(name==="ping") return i.reply({embeds:[embed("Pong",`Gateway ping: ${client.ws.ping} ms\nRound-trip: ${Date.now()-i.createdTimestamp} ms`)],ephemeral:true});
  if(name==="about") return i.reply({embeds:[embed("Zuzify Discord Bot","A standalone community bot for the Zuzify app ecosystem. Includes persistent profiles, forms, rank rewards, moderation tools and optional Groq AI.")],ephemeral:true});
