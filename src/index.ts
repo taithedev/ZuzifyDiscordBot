@@ -31,7 +31,7 @@ async function openModal(i:ChatInputCommandInteraction|ButtonInteraction,id:stri
 }
 async function saveForm(i:ModalSubmitInteraction,type:string,title:string,answers:Record<string,string>){
  if(!i.guildId) return reply(i,"Use this form inside a server.");
- const {error}=await db.from("bot_forms").insert({guild_id:i.guildId,discord_user_id:i.user.id,form_type:type,title,answers});
+ const {data:submission,error}=await db.from("bot_forms").insert({guild_id:i.guildId,discord_user_id:i.user.id,form_type:type,title,answers}).select("id").single();
  if(error) throw new Error(error.message);
  await logEvent(i.guildId,i.user.id,"form_submitted",{type,title});
  const target=await getSetting(i.guildId,type+"_channel");
@@ -39,10 +39,10 @@ async function saveForm(i:ModalSubmitInteraction,type:string,title:string,answer
   const ch=await i.guild.channels.fetch(target).catch(()=>null);
   if(ch?.isTextBased()&&"send" in ch){
    const e=embed(title,Object.entries(answers).map(([k,v])=>`**${k}:** ${v}`).join("\n").slice(0,4000)).addFields({name:"Submitted by",value:`${i.user.tag} (${i.user.id})`});
-   await (ch as TextChannel).send({embeds:[e]}).catch(()=>null);
+   await (ch as TextChannel).send({content:"Application/form ID: "+(submission?.id||"unknown"),embeds:[e]}).catch(()=>null);
   }
  }
- await reply(i,`Your ${type} form was submitted privately. Reference: ${title}`);
+ await reply(i,`Your ${type} form was submitted privately. Reference ID: ${submission?.id||"unknown"}`);
 }
 async function createTicket(i:ButtonInteraction){
  if(!i.guild||!i.guildId) return reply(i,"Tickets must be opened inside a server.");
@@ -127,6 +127,27 @@ async function handleCommand(i:ChatInputCommandInteraction){
  const guild=i.guild;
  if(guild) void touchMember(guild.id,i.user).catch(error=>console.error("Member tracking failed:",error));
 
+ const tierPower:{[key:string]:number}={member:0,moderator:1,community_manager:2,admin:3,owner:4};
+ let tier="member";
+ if(guild){
+  if(isOwner(i.user.id)||i.user.id===guild.ownerId)tier="owner";
+  else{
+   const staff=await guild.members.fetch(i.user.id).catch(()=>null);
+   if(staff)for(const option of ["owner","admin","community_manager","moderator"]){
+    const roleId=await getSetting(guild.id,"staff_role_"+option);
+    if(roleId&&staff.roles.cache.has(roleId)){tier=option;break;}
+   }
+  }
+ }
+ const roleActions:{[key:string]:string[]}={
+  moderator:["warn","warnings","timeout","untimeout","purge","ticketpanel","ticketstatus"],
+  community_manager:["suggestionreview","applicationreview","announce","poll","formpanel"],
+  admin:["setup","configchannel","rankrole","rankconfig","kick","ban","lock","unlock","slowmode","nickname","roleadd","roleremove","aistyle","ecosystemannounce","recentlogs"],
+  owner:["staffrole","owneralerttest"]
+ };
+ const requiredTier=Object.entries(roleActions).find(([,names])=>names.includes(name))?.[0];
+ if(requiredTier && tierPower[tier]<tierPower[requiredTier])
+  return reply(i,"Staff access denied. Requires the **"+requiredTier.replace("_"," ")+"** tier or higher. Ask the server owner to assign a tier using /staffrole.");
  if(name==="signup") return reply(i,"Create your account on the official Zuzify website (PrezzStore, Zuzify Socials, ZuzuOS or FastProxy), then use /login or /linkaccount to connect it. Never give your website password to a Discord command.");
  if(name==="login"||name==="linkaccount"){
   const service=i.options.getString("service",true);
@@ -347,28 +368,7 @@ async function handleCommand(i:ChatInputCommandInteraction){
   await db.from("bot_polls").insert({guild_id:guild.id,discord_user_id:i.user.id,question,options,message_id:sent.id});
   return;
  }
- const ownerStaff=isOwner(i.user.id)||i.user.id===guild!.ownerId;
  const staffTiers=["moderator","community_manager","admin","owner"] as const;
- async function staffTier(){
-  if(ownerStaff)return "owner";
-  const member=await guild!.members.fetch(i.user.id).catch(()=>null);
-  if(!member)return "member";
-  for(const tier of ["owner","admin","community_manager","moderator"] as const){
-   const id=await getSetting(guild!.id,"staff_role_"+tier);
-   if(id&&member.roles.cache.has(id))return tier;
-  }
-  return "member";
- }
- const tier=await staffTier();
- const capabilities:{[key:string]:string[]}={
-  moderator:["warn","warnings","timeout","untimeout","purge","ticketpanel","ticketstatus"],
-  community_manager:["suggestionreview","applicationreview","announce","poll","formpanel"],
-  admin:["setup","configchannel","rankrole","rankconfig","kick","ban","lock","unlock","slowmode","nickname","roleadd","roleremove","aistyle","ecosystemannounce","recentlogs"],
-  owner:["staffrole","owneralerttest"]
- };
- const tierPower:{[key:string]:number}={member:0,moderator:1,community_manager:2,admin:3,owner:4};
- const needed=Object.entries(capabilities).find(([,names])=>names.includes(name))?.[0];
- if(needed && tierPower[tier]<tierPower[needed])return reply(i,"Insufficient staff tier. Requires "+needed.replace("_"," ")+" or above. Ask the owner to configure /staffrole.");
  if(name==="staffperms")return reply(i,"Your staff tier: **"+tier+"**. Tiers are separate and ordered: Moderator (warnings/timeouts), Community Manager (applications/announcements), Admin (kicks/bans/configuration), Owner (staff role assignments). Discord's own channel and role permissions still apply.");
  if(name==="staffrole"){
   const target=i.options.getString("tier",true),role=i.options.getRole("role",true);
@@ -560,7 +560,7 @@ client.on(Events.MessageCreate,async message=>{
    // Silent XP: award roles without sending messages on level gains.
    const roleId=await getSetting(message.guild.id,`rank_role_${newLevel}`);
    if(roleId&&message.member) await message.member.roles.add(roleId).catch(()=>null);
-   await logEvent(message.guild.id,message.author.id,"level_up",{level:newLevel,xp:newXp});
+   // Intentionally keep XP/level updates silent; no channel messages or audit notifications.
   }
  }catch(error){console.error("Message XP error:",error);}
 });
