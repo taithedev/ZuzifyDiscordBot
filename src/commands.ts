@@ -102,6 +102,13 @@ const commands = [
  new SlashCommandBuilder().setName("ticketstatus").setDescription("Check whether your support ticket is open"),
  new SlashCommandBuilder().setName("warningscount").setDescription("Check your number of warnings"),
  new SlashCommandBuilder().setName("recentlogs").setDescription("Show recent audit activity (staff only)").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
+ new SlashCommandBuilder().setName("points").setDescription("View points and XP earned from participating in this server").addUserOption(o=>o.setName("user").setDescription("Member to check")),
+ new SlashCommandBuilder().setName("pointsboard").setDescription("See top points earners on this server"),
+ new SlashCommandBuilder().setName("aistatus").setDescription("Check Zuzify AI provider and configuration status"),
+ new SlashCommandBuilder().setName("aistyle").setDescription("Choose Zuzify AI response tone (server managers)").setDefaultMemberPermissions(admin)
+  .addStringOption(o=>o.setName("tone").setDescription("Response style").setRequired(true).addChoices({name:"Friendly",value:"friendly"},{name:"Professional",value:"professional"},{name:"Playful",value:"playful"},{name:"Study helper",value:"study"})),
+ new SlashCommandBuilder().setName("ecosystemstatus").setDescription("Show available Zuzify integrations and linked accounts"),
+ new SlashCommandBuilder().setName("pointsguide").setDescription("Explain how to earn points and ranks"),
  new SlashCommandBuilder().setName("owneralerttest").setDescription("Test the private developer notification system (owner only)").setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 ].map(data=>({data}));
 export { commands };
