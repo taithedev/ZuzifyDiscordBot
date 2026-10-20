@@ -1,6 +1,7 @@
 import {createHash, randomBytes} from "node:crypto";
 import {createClient} from "@supabase/supabase-js";
 import {config} from "./config.js";
+import {db as botDb} from "./db.js";
 
 export const services = ["prezzstore","zuzifysocials","zuzuos","fastproxy"] as const;
 export type Service = typeof services[number];
@@ -14,8 +15,11 @@ const ecosystemServiceKey = config.ecosystemServiceKey || (ecosystemUrl===config
 export const ecosystemDb = ecosystemServiceKey
  ? createClient(ecosystemUrl,ecosystemServiceKey,{auth:{persistSession:false,autoRefreshToken:false}})
  : null;
+const authClient = config.ecosystemPublishableKey
+ ? createClient(ecosystemUrl, config.ecosystemPublishableKey, {auth:{persistSession:false,autoRefreshToken:false}})
+ : null;
 export function linkingReady():boolean {
- return Boolean(ecosystemDb && config.ecosystemPublishableKey && config.botPublicUrl && /^https:\/\//.test(config.botPublicUrl));
+ return Boolean(authClient && config.botPublicUrl && /^https:\/\//.test(config.botPublicUrl));
 }
 function database(){
  if(!ecosystemDb) throw new Error("Account linking needs ECOSYSTEM_SUPABASE_SERVICE_ROLE_KEY.");
@@ -26,53 +30,57 @@ function checked<T>(data:T,error:{message:string}|null):T{
  if(error)throw new Error(error.message);
  return data;
 }
+const challengeScope="discord_account_challenges";
+const linkScope="discord_ecosystem_account_links";
+const recentChallenges=new Map<string,number[]>();
 export async function createChallenge(discordId:string,service:Service){
- if(!linkingReady())throw new Error("Account linking is not configured. The host needs BOT_PUBLIC_URL, ECOSYSTEM_SUPABASE_URL, ECOSYSTEM_SUPABASE_SERVICE_ROLE_KEY, and ECOSYSTEM_SUPABASE_PUBLISHABLE_KEY.");
- const db=database();
- const now=new Date().toISOString();
- const {count,error:countError}=await db.from("bot_link_challenges").select("code_hash",{head:true,count:"exact"}).eq("discord_user_id",discordId).gt("created_at",new Date(Date.now()-60_000).toISOString());
- checked(count,countError);
- if((count||0)>=3)throw new Error("Too many account-link requests. Try again in a minute.");
+ if(!linkingReady()) throw new Error("Account linking requires ECOSYSTEM_SUPABASE_PUBLISHABLE_KEY and BOT_PUBLIC_URL on Railway.");
+ const now=Date.now();
+ const recent=(recentChallenges.get(discordId)||[]).filter(timestamp=>now-timestamp<60_000);
+ if(recent.length>=3) throw new Error("Too many link requests. Try again in one minute.");
+ recent.push(now);
+ recentChallenges.set(discordId,recent);
  const code=randomBytes(32).toString("hex");
- const {error}=await db.from("bot_link_challenges").insert({
-  code_hash:hash(code),discord_user_id:discordId,service,
-  expires_at:new Date(Date.now()+10*60_000).toISOString()
- });
+ const entry=JSON.stringify({discordId,service,expiresAt:now+600_000});
+ const {error}=await botDb.from("bot_settings").upsert({guild_id:challengeScope,key:hash(code),value:entry},{onConflict:"guild_id,key"});
  checked(null,error);
  return config.botPublicUrl.replace(/\/$/,"")+"/link?code="+encodeURIComponent(code);
 }
 export async function consumeChallenge(code:string,accessToken:string){
- if(!/^[0-9a-f]{64}$/.test(code)||accessToken.length<20||accessToken.length>8192) throw new Error("Invalid or expired link request.");
- const db=database();
- const {data:userData,error:userError}=await db.auth.getUser(accessToken);
- if(userError||!userData.user||userData.user.is_anonymous) throw new Error("Sign-in verification failed. Sign in to an existing Zuzify account.");
- const {data,error}=await db.from("bot_link_challenges").update({used_at:new Date().toISOString()})
-  .eq("code_hash",hash(code)).is("used_at",null).gt("expires_at",new Date().toISOString())
-  .select("discord_user_id,service").maybeSingle();
- checked(data,error);
- if(!data||!isService(data.service)) throw new Error("This link has expired or was already used. Generate a fresh /linkaccount link.");
- const {error:linkError}=await db.from("bot_ecosystem_links").upsert({
-  discord_user_id:data.discord_user_id,service:data.service,user_id:userData.user.id,
-  linked_at:new Date().toISOString()
- },{onConflict:"discord_user_id,service"});
- if(linkError){
-  if(linkError.code==="23505")throw new Error("That Zuzify account is already linked to a different Discord user.");
-  throw new Error("Could not save the verified link.");
- }
- return {service:data.service};
+ if(!/^[0-9a-f]{64}$/.test(code)||accessToken.length<20||accessToken.length>8192||!authClient)throw new Error("Invalid account-link request.");
+ const {data:userData,error:userError}=await authClient.auth.getUser(accessToken);
+ if(userError||!userData.user||userData.user.is_anonymous)throw new Error("Account verification failed. Sign in with your existing Zuzify credentials.");
+ const key=hash(code);
+ const {data:row,error:readError}=await botDb.from("bot_settings").select("value").eq("guild_id",challengeScope).eq("key",key).maybeSingle();
+ checked(row,readError);
+ if(!row)throw new Error("Link expired or already used. Request another /linkaccount link.");
+ let challenge:{discordId:string;service:string;expiresAt:number};
+ try{challenge=JSON.parse(String(row.value));}catch{throw new Error("Invalid link challenge.");}
+ if(!/^\d{15,25}$/.test(challenge.discordId)||!isService(challenge.service)||!Number.isFinite(challenge.expiresAt)||challenge.expiresAt<Date.now())throw new Error("Link expired or invalid. Request a fresh /linkaccount link.");
+ const {data:consumed,error:consumeError}=await botDb.from("bot_settings").delete().eq("guild_id",challengeScope).eq("key",key).eq("value",row.value).select("id").maybeSingle();
+ checked(consumed,consumeError);
+ if(!consumed)throw new Error("This link has already been used.");
+ // Store only the verified account UUID; do not store the password or OAuth session.
+ const {error:linkError}=await botDb.from("bot_settings").upsert({
+  guild_id:linkScope,key:challenge.discordId+":"+challenge.service,value:userData.user.id
+ },{onConflict:"guild_id,key"});
+ checked(null,linkError);
+ return {service:challenge.service};
 }
 export async function linkedAccounts(discordId:string){
- const {data,error}=await database().from("bot_ecosystem_links")
-  .select("service,user_id,linked_at").eq("discord_user_id",discordId).order("linked_at",{ascending:true});
- return checked(data,error)||[];
+ const {data,error}=await botDb.from("bot_settings").select("key,value,updated_at")
+  .eq("guild_id",linkScope).like("key",discordId+":%").order("updated_at",{ascending:true});
+ checked(data,error);
+ return (data||[]).map(row=>({service:String(row.key).split(":")[1],user_id:row.value,linked_at:row.updated_at}));
 }
 export async function unlinkAccount(discordId:string,service:Service){
- const {data,error}=await database().from("bot_ecosystem_links").delete()
-  .eq("discord_user_id",discordId).eq("service",service).select("service").maybeSingle();
+ const {data,error}=await botDb.from("bot_settings").delete()
+  .eq("guild_id",linkScope).eq("key",discordId+":"+service).select("id").maybeSingle();
  checked(data,error);
  return Boolean(data);
 }
 async function count(table:string,key:string,id:string,additional?:{field:string,value:string}){
+ if(!ecosystemDb)return null;
  let q=database().from(table).select("*",{head:true,count:"exact"}).eq(key,id);
  if(additional)q=q.eq(additional.field,additional.value);
  const {count,error}=await q;
@@ -86,6 +94,7 @@ async function nameFor(service:Service,userId:string):Promise<string|null>{
   fastproxy:{table:"fastproxy_profiles",key:"user_id",column:"display_name"},
   zuzifysocials:{table:"zuzify_members",key:"user_id",column:"user_id"}
  };
+ if(!ecosystemDb)return null;
  const m=map[service];
  const {data,error}=await database().from(m.table).select(m.column).eq(m.key,userId).limit(1).maybeSingle();
  if(error)return null;
@@ -114,7 +123,7 @@ export async function accountStats(discordId:string,service:Service){
   metrics.roomsJoined=await count("zuzify_members","user_id",userId);
   metrics.messagesSent=await count("zuzify_messages","sender_id",userId);
  }
- return {service,displayName,linkedAt:link.linked_at,metrics};
+ return {service,displayName,linkedAt:link.linked_at,metrics,statsReady:Boolean(ecosystemDb)};
 }
 export function linkPage():string{
  // No user-supplied content is embedded in the document. Authentication goes directly
