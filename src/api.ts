@@ -29,7 +29,7 @@ export function startApi(){
   const url=new URL(req.url||"/","http://localhost");
   if(req.method==="GET"&&url.pathname==="/health") return send(res,200,{ok:true,service:"zuzify-discord-bot",time:new Date().toISOString()});
   if(req.method==="GET"&&url.pathname==="/link"){
-   res.writeHead(200,{"content-type":"text/html; charset=utf-8","cache-control":"no-store","referrer-policy":"no-referrer","x-frame-options":"DENY","x-content-type-options":"nosniff","content-security-policy":"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self' "+config.ecosystemSupabaseUrl.replace(/\\/$/,"")+" "+config.supabaseUrl+"; form-action 'self'; base-uri 'none'; frame-ancestors 'none'"});
+   res.writeHead(200,{"content-type":"text/html; charset=utf-8","cache-control":"no-store","referrer-policy":"no-referrer","x-frame-options":"DENY","x-content-type-options":"nosniff","content-security-policy":"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self' "+(config.ecosystemSupabaseUrl||config.supabaseUrl)+" "+config.supabaseUrl+"; form-action 'self'; base-uri 'none'; frame-ancestors 'none'"});
    return res.end(linkPage());
   }
   if(req.method==="POST"&&url.pathname==="/api/v1/link/complete"){
