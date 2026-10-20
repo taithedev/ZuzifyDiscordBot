@@ -109,6 +109,14 @@ const commands = [
   .addStringOption(o=>o.setName("tone").setDescription("Response style").setRequired(true).addChoices({name:"Friendly",value:"friendly"},{name:"Professional",value:"professional"},{name:"Playful",value:"playful"},{name:"Study helper",value:"study"})),
  new SlashCommandBuilder().setName("ecosystemstatus").setDescription("Show available Zuzify integrations and linked accounts"),
  new SlashCommandBuilder().setName("pointsguide").setDescription("Explain how to earn points and ranks"),
+ new SlashCommandBuilder().setName("applicationreview").setDescription("Approve or decline an application and DM the applicant").addStringOption(o=>o.setName("id").setDescription("Application ID").setRequired(true)).addStringOption(o=>o.setName("decision").setDescription("Decision").setRequired(true).addChoices({name:"Accepted",value:"accepted"},{name:"Declined",value:"declined"})).addStringOption(o=>o.setName("note").setDescription("Optional message").setMaxLength(400)),
+ new SlashCommandBuilder().setName("staffrole").setDescription("Assign a Discord role to a staff permission tier").addStringOption(o=>o.setName("tier").setDescription("Tier").setRequired(true).addChoices({name:"Moderator",value:"moderator"},{name:"Community Manager",value:"community_manager"},{name:"Admin",value:"admin"},{name:"Owner",value:"owner"})).addRoleOption(o=>o.setName("role").setDescription("Role").setRequired(true)),
+ new SlashCommandBuilder().setName("staffperms").setDescription("See staff permission tiers"),
+ new SlashCommandBuilder().setName("gifsearch").setDescription("Find GIFs through GIPHY (requires server API key)").addStringOption(o=>o.setName("query").setDescription("Search terms").setRequired(true).setMaxLength(80)),
+ new SlashCommandBuilder().setName("gifsave").setDescription("Save a safe HTTPS GIF URL to your inventory").addStringOption(o=>o.setName("name").setDescription("Name").setRequired(true).setMaxLength(28)).addStringOption(o=>o.setName("url").setDescription("Direct GIF URL").setRequired(true).setMaxLength(450)),
+ new SlashCommandBuilder().setName("gifs").setDescription("View your saved GIF inventory"),
+ new SlashCommandBuilder().setName("gifuse").setDescription("Post a saved GIF").addStringOption(o=>o.setName("name").setDescription("Saved GIF name").setRequired(true)),
+ new SlashCommandBuilder().setName("gifremove").setDescription("Remove a GIF from your inventory").addStringOption(o=>o.setName("name").setDescription("Saved GIF name").setRequired(true)),
  new SlashCommandBuilder().setName("owneralerttest").setDescription("Test the private developer notification system (owner only)").setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 ].map(data=>({data}));
 export { commands };
