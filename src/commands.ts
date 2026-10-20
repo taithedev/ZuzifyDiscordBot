@@ -136,6 +136,18 @@ const commands = [
    .addStringOption(x=>x.setName("value").setDescription("True/false, valid number, tone, or channel ID").setRequired(true).setMaxLength(100)))
   .addSubcommand(o=>o.setName("reset").setDescription("Restore a setting to its default")
    .addStringOption(x=>x.setName("setting").setDescription("Setting to reset").setRequired(true))),
+ new SlashCommandBuilder().setName("aimodel").setDescription("Choose the AI model and inspect current usage settings")
+  .addSubcommand(o=>o.setName("view").setDescription("See model, provider and reply limit"))
+  .addSubcommand(o=>o.setName("set").setDescription("Owner: select a supported model")
+   .addStringOption(x=>x.setName("model").setDescription("Available model").setRequired(true).addChoices(
+    {name:"GPT-5 nano (low cost)",value:"gpt-5-nano"},
+    {name:"GPT-5 mini",value:"gpt-5-mini"},
+    {name:"GPT-4.1 nano (legacy low cost)",value:"gpt-4.1-nano"},
+    {name:"GPT-4.1 mini (legacy)",value:"gpt-4.1-mini"}
+   ))),
+ new SlashCommandBuilder().setName("rememberme").setDescription("Opt in or out of basic AI personalization")
+  .addStringOption(x=>x.setName("choice").setDescription("Personalization preference").setRequired(true).addChoices({name:"Enable",value:"on"},{name:"Disable and clear",value:"off"})),
+ new SlashCommandBuilder().setName("aiprofile").setDescription("See the information AI can use about your Discord profile"),
  new SlashCommandBuilder().setName("staffperms").setDescription("See staff permission tiers"),
  new SlashCommandBuilder().setName("gifsearch").setDescription("Search Tenor or GIPHY GIFs").addStringOption(o=>o.setName("query").setDescription("Search terms").setRequired(true).setMaxLength(80)).addStringOption(o=>o.setName("provider").setDescription("Search provider").addChoices({name:"GIPHY",value:"giphy"},{name:"Tenor",value:"tenor"})),
  new SlashCommandBuilder().setName("gifsave").setDescription("Save a safe HTTPS GIF URL to your inventory").addStringOption(o=>o.setName("name").setDescription("Name").setRequired(true).setMaxLength(28)).addStringOption(o=>o.setName("url").setDescription("Direct GIF URL").setRequired(true).setMaxLength(450)),
