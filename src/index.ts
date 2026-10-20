@@ -191,7 +191,7 @@ async function handleCommand(i:ChatInputCommandInteraction){
   return i.editReply(`Announcement published to Discord and stored for the Zuzify websites. ID: ${result.id}`);
  }
  if(name==="help"){
-  return i.reply({embeds:[embed("Zuzify Bot — Commands","**General**\n/help · /ping · /about · /ecosystem · /latestnews · /serverstats · /profile · /rank · /leaderboard · /ai\n\n**Accounts and forms**\n/signup · /login · /formpanel · /application · /suggest · /report\n\n**Community**\n/poll · /ticketpanel · /suggestionreview\n\n**Ranks**\n/setup · /rankconfig\n\n**Moderation**\n/warn · /warnings · /timeout · /untimeout · /kick · /ban · /purge · /lock · /unlock · /slowmode · /nickname · /roleadd · /roleremove · /announce · /ecosystemannounce")],ephemeral:true});
+  return i.reply({embeds:[embed("Zuzify Bot — Commands","**Accounts**\n/signup · /login · /linkaccount · /accounts · /accountstats · /unlinkaccount · /mystats\n\n**Community**\n/help · /ping · /ecosystem · /latestnews · /links · /ai · /profile · /rank · /leaderboard · /serverstats · /userinfo · /avatar · /serverinfo · /roleinfo · /channelinfo\n\n**Info**\n/version · /changelog · /uptime · /botstats · /privacy\n\n**Forms & support**\n/formpanel · /ticketpanel · /ticketstatus · /report · /suggest · /application · /poll\n\n**Moderation & setup**\n/setup · /rankrole · /rankconfig · /configchannel · /warn · /warnings · /warningscount · /timeout · /untimeout · /kick · /ban · /purge · /lock · /unlock · /slowmode · /nickname · /roleadd · /roleremove · /announce · /ecosystemannounce · /suggestionreview · /recentlogs · /owneralerttest")],ephemeral:true});
  }
  if(name==="ping") return i.reply({embeds:[embed("Pong",`Gateway ping: ${client.ws.ping} ms\nRound-trip: ${Date.now()-i.createdTimestamp} ms`)],ephemeral:true});
  if(name==="about") return i.reply({embeds:[embed("Zuzify Discord Bot","A standalone community bot for the Zuzify app ecosystem. Includes persistent profiles, forms, rank rewards, moderation tools and optional Groq AI.")],ephemeral:true});
@@ -205,6 +205,50 @@ async function handleCommand(i:ChatInputCommandInteraction){
   return i.editReply({embeds:[embed("Zuzify AI",answer.slice(0,4000))]});
  }
  if(!guild) return reply(i,"This command must be used in a server.");
+ if(name==="botstats"){
+  await i.deferReply({ephemeral:true});
+  const [{count:members},{count:events},{count:tickets}]=await Promise.all([
+   db.from("bot_members").select("id",{head:true,count:"exact"}).eq("guild_id",guild.id),
+   db.from("bot_events").select("id",{head:true,count:"exact"}).eq("guild_id",guild.id),
+   db.from("bot_tickets").select("id",{head:true,count:"exact"}).eq("guild_id",guild.id).eq("status","open")
+  ]);
+  return i.editReply({embeds:[embed("Zuzify bot statistics","Version: "+config.version+"\nUptime: "+Math.floor((client.uptime||0)/60000)+" minutes\nGateway latency: "+client.ws.ping+"ms\nTracked members: "+(members??0)+"\nLogged events: "+(events??0)+"\nOpen tickets: "+(tickets??0))]});
+ }
+ if(name==="userinfo"){
+  const user=i.options.getUser("user")||i.user;
+  return i.reply({embeds:[embed("Discord member — "+user.username,"User ID: "+user.id+"\nAccount created: <t:"+Math.floor(user.createdTimestamp/1000)+":D>\nBot account: "+(user.bot?"Yes":"No")).setThumbnail(user.displayAvatarURL())]});
+ }
+ if(name==="avatar"){
+  const user=i.options.getUser("user")||i.user;
+  return i.reply({embeds:[new EmbedBuilder().setTitle(user.username+"'s avatar").setImage(user.displayAvatarURL({size:1024})).setColor(colors.brand)],ephemeral:true});
+ }
+ if(name==="serverinfo")return i.reply({embeds:[embed(guild.name+" — server information","Server ID: "+guild.id+"\nCreated: <t:"+Math.floor(guild.createdTimestamp/1000)+":D>\nMembers: "+guild.memberCount+"\nChannels: "+guild.channels.cache.size+"\nRoles: "+guild.roles.cache.size)]});
+ if(name==="roleinfo"){
+  const role=i.options.getRole("role",true);
+  return i.reply({embeds:[embed("Role information","Name: "+role.name+"\nID: "+role.id)]});
+ }
+ if(name==="channelinfo"){
+  const channel=i.channel;
+  return reply(i,channel?"Channel ID: "+channel.id+"\nType: "+channel.type:"Use this command inside a channel.");
+ }
+ if(name==="ticketstatus"){
+  const {data,error}=await db.from("bot_tickets").select("channel_id,created_at").eq("guild_id",guild.id).eq("discord_user_id",i.user.id).eq("status","open").order("created_at",{ascending:false}).limit(1).maybeSingle();
+  if(error)throw new Error(error.message);
+  return reply(i,data?"Your ticket is open: "+(data.channel_id?"<#"+data.channel_id+">":"channel pending"):"You do not have an open ticket.");
+ }
+ if(name==="warningscount"){
+  const {count,error}=await db.from("bot_warnings").select("id",{head:true,count:"exact"}).eq("guild_id",guild.id).eq("discord_user_id",i.user.id);
+  if(error)throw new Error(error.message);
+  return reply(i,"You have "+(count??0)+" recorded warnings in this server.");
+ }
+ if(name==="recentlogs"){
+  if(!i.memberPermissions?.has(PermissionFlagsBits.ManageGuild))return reply(i,"Manage Server permission required.");
+  await i.deferReply({ephemeral:true});
+  const {data,error}=await db.from("bot_events").select("event_type,created_at").eq("guild_id",guild.id).order("created_at",{ascending:false}).limit(10);
+  if(error)throw new Error(error.message);
+  return i.editReply({embeds:[embed("Recent server audit activity",(data||[]).map(row=>"• "+String(row.event_type).slice(0,70)+" — <t:"+Math.floor(new Date(row.created_at).getTime()/1000)+":R>").join("\n")||"No recent events.")]});
+ }
+
  if(name==="serverstats"){
   const {count}=await db.from("bot_members").select("*",{count:"exact",head:true}).eq("guild_id",guild.id);
   return i.reply({embeds:[embed(`${guild.name} — Server stats`,`Members: ${guild.memberCount}\nChannels: ${guild.channels.cache.size}\nRoles: ${guild.roles.cache.size}\nBot-tracked profiles: ${count??0}\nCreated: <t:${Math.floor(guild.createdTimestamp/1000)}:D>`)]});
@@ -388,6 +432,7 @@ client.on(Events.InteractionCreate,async (raw:Interaction)=>{
   }
  }catch(error){
   console.error("Interaction error:",error);
+  queueOwnerLog("interaction_error:"+String(error instanceof Error?error.message:"Unknown").slice(0,90),raw.guildId||"dm",raw.user?.id);
   if(raw.isRepliable()) await reply(raw as ChatInputCommandInteraction|ButtonInteraction|ModalSubmitInteraction,"Something went wrong. The error was logged; check bot logs and confirm the Supabase migration has run.").catch(()=>null);
  }
 });
@@ -424,6 +469,16 @@ client.on(Events.GuildMemberRemove,async member=>{
 });
 client.once(Events.ClientReady,ready=>{
  console.log(`Logged in as ${ready.user.tag}`);
+ void (async()=>{
+  const key="last_announced_bot_version";
+  try{
+   const last=await getSetting("global",key);
+   if(last!==config.version){
+    await setSetting("global",key,config.version);
+    await urgentOwnerAlert("ZuzifyDiscordBot deployed","Version "+config.version+" is now connected as "+ready.user.tag+".");
+   }
+  }catch(error){console.error("Bot release notification could not be recorded:",error);}
+ })();
  ready.user.setPresence({activities:[{name:config.status,type:ActivityType.Playing}],status:"online"});
  if(config.aiChatEnabled&&config.aiChatChannelId){
   lastHumanMessageAt.set(config.aiChatChannelId,Date.now());
@@ -432,7 +487,7 @@ client.once(Events.ClientReady,ready=>{
   console.log(`Autonomous AI enabled for channel ${config.aiChatChannelId}; idle threshold ${config.aiChatIdleMinutes}m, repeat interval ${config.aiChatIntervalMinutes}m`);
  }
 });
-process.on("unhandledRejection",error=>console.error("Unhandled rejection:",error));
-process.on("uncaughtException",error=>{console.error("Uncaught exception:",error);});
+process.on("unhandledRejection",error=>{console.error("Unhandled rejection:",error);queueOwnerLog("unhandled_rejection");});
+process.on("uncaughtException",error=>{console.error("Uncaught exception:",error);queueOwnerLog("uncaught_exception");});
 startApi();
 await client.login(config.token);
