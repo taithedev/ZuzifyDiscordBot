@@ -4,7 +4,7 @@ Standalone Discord bot for the Zuzify ecosystem. It does not depend on ZuzifySoc
 
 ## Version 1.2.0 — secure ecosystem accounts
 
-The bot now includes **55 slash commands** covering existing moderation, support, announcements,
+The bot now includes **58 slash commands** covering existing moderation, support, announcements,
 XP, plus verified Zuzify website accounts, personal statistics, role/channel info,
 staff audit history, version/uptime, and owner alerts.
 
