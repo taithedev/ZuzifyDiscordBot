@@ -3,6 +3,7 @@ import {randomUUID,timingSafeEqual} from "node:crypto";
 import {config} from "./config.js";
 import {db} from "./db.js";
 import {latestAnnouncements,publishAnnouncement} from "./ecosystem.js";
+import {linkPage,consumeChallenge} from "./account-link.js";
 
 const bucket="zuzify-private";
 const allowedTypes=new Set(["image/png","image/jpeg","image/webp","image/gif","application/pdf","text/plain","application/json"]);
@@ -27,6 +28,21 @@ export function startApi(){
  const server=createServer(async(req,res)=>{
   const url=new URL(req.url||"/","http://localhost");
   if(req.method==="GET"&&url.pathname==="/health") return send(res,200,{ok:true,service:"zuzify-discord-bot",time:new Date().toISOString()});
+  if(req.method==="GET"&&url.pathname==="/link"){
+   res.writeHead(200,{"content-type":"text/html; charset=utf-8","cache-control":"no-store","referrer-policy":"no-referrer","x-frame-options":"DENY","x-content-type-options":"nosniff","content-security-policy":"default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self' "+config.ecosystemSupabaseUrl.replace(/\\/$/,"")+" "+config.supabaseUrl+"; form-action 'self'; base-uri 'none'; frame-ancestors 'none'"});
+   return res.end(linkPage());
+  }
+  if(req.method==="POST"&&url.pathname==="/api/v1/link/complete"){
+   try{
+    const body=await readJson(req);
+    const bearer=req.headers.authorization?.startsWith("Bearer ")?req.headers.authorization.slice(7):"";
+    const result=await consumeChallenge(String(body.code||""),bearer);
+    return send(res,200,{ok:true,service:result.service});
+   }catch(error){
+    console.error("Link verification rejected:",error instanceof Error?error.message:"Unknown error");
+    return send(res,400,{error:error instanceof Error?error.message:"Unable to connect account"});
+   }
+  }
   if(!url.pathname.startsWith("/api/v1/")) return send(res,404,{error:"Not found"});
   if(!authorized(req)) return send(res,401,{error:"Missing or invalid API bearer token"});
   try{
