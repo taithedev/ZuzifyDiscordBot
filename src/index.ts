@@ -140,8 +140,8 @@ async function handleCommand(i:ChatInputCommandInteraction){
   }
  }
  const roleActions:{[key:string]:string[]}={
-  moderator:["warn","warnings","timeout","untimeout","purge","ticketpanel","ticketstatus"],
-  community_manager:["suggestionreview","applicationreview","announce","poll","formpanel"],
+  moderator:["warn","warnings","timeout","untimeout","purge"],
+  community_manager:["suggestionreview","applicationreview","announce","formpanel","ticketpanel"],
   admin:["setup","configchannel","rankrole","rankconfig","kick","ban","lock","unlock","slowmode","nickname","roleadd","roleremove","aistyle","ecosystemannounce","recentlogs"],
   owner:["staffrole","owneralerttest"]
  };
@@ -191,7 +191,7 @@ async function handleCommand(i:ChatInputCommandInteraction){
  if(name==="privacy")return reply(i,"Zuzify account links are private to your Discord user. Website authentication runs directly with Supabase Auth in the browser; the bot stores only verified user IDs, not passwords or sessions. Use /unlinkaccount to disconnect. Personal website statistics are visible only to you.");
  if(name==="links")return reply(i,"Official Zuzify services:\nPrezzStore: https://prezz-store.vercel.app\nZuzify Socials: https://zuzifysocials.vercel.app\nZuzuOS: https://zuzuos.lol\nFor FastProxy, use the official URL shared by its owner.");
  if(name==="owneralerttest"){
-  if(!isOwner(i.user.id)&&i.user.id!==config.ownerAlertId)return reply(i,"Only the bot owner can test private alerts.");
+  if(tier!=="owner"&&i.user.id!==config.ownerAlertId)return reply(i,"Only the bot owner can test private alerts.");
   await i.deferReply({ephemeral:true});
   await urgentOwnerAlert("Zuzify notification test","Requested by Discord "+i.user.id+" in "+(i.guildId||"DM")+".");
   return i.editReply("Notification test requested. Delivery depends on the owner's DM privacy settings and the Discord API.");
@@ -203,7 +203,7 @@ async function handleCommand(i:ChatInputCommandInteraction){
   return i.editReply({embeds:[embed("Ecosystem announcements",announcements.map(a=>`**${a.title}** — ${a.source}\\n${a.body.slice(0,300)}`).join("\\n\\n")||"No announcements yet.")]});
  }
  if(name==="ecosystemannounce") {
-  if(!i.guildId||!i.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) return reply(i,"Manage Server permission is required.");
+  if(!i.guildId) return reply(i,"Use this in a server.");
   await i.deferReply({ephemeral:true});
   const channel=i.options.getChannel("channel",true);
   const title=i.options.getString("title",true),body=i.options.getString("message",true);
@@ -222,7 +222,7 @@ async function handleCommand(i:ChatInputCommandInteraction){
  if(name==="application") return openModal(i,"form:application","Zuzify community application",[{id:"role",label:"What are you applying for?",max:100},{id:"experience",label:"Relevant experience",style:TextInputStyle.Paragraph,max:1000},{id:"why",label:"Why should we consider you?",style:TextInputStyle.Paragraph,max:1000}]);
  if(name==="aistatus")return reply(i,"Zuzify AI provider: **"+aiProvider()+"**. Automatic messages: "+(config.aiChatEnabled?"enabled":"disabled")+". Model: "+(config.openaiApiKey?config.openaiModel:config.groqApiKey?config.groqModel:"none")+". API secrets are never displayed.");
  if(name==="aistyle"){
-  if(!i.guildId||!i.memberPermissions?.has(PermissionFlagsBits.ManageGuild))return reply(i,"Manage Server permission required.");
+  if(!i.guildId)return reply(i,"Use this in a server.");
   const tone=i.options.getString("tone",true);
   if(!["friendly","professional","playful","study"].includes(tone))return reply(i,"Invalid style.");
   await setSetting(i.guildId,"ai_tone",tone);
