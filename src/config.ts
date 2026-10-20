@@ -21,6 +21,6 @@ export const config={
  ecosystemServiceKey:process.env.ECOSYSTEM_SUPABASE_SERVICE_ROLE_KEY?.trim()||"",
  ecosystemPublishableKey:process.env.ECOSYSTEM_SUPABASE_PUBLISHABLE_KEY?.trim()||"",
  ownerAlertId:process.env.BOT_OWNER_ALERT_ID?.trim()||"1052713883753775164",
- version:process.env.BOT_VERSION?.trim()||"1.3.0",
+ version:process.env.BOT_VERSION?.trim()||"1.4.0",
  status:process.env.BOT_STATUS?.trim()||"Zuzify ecosystem | /help"
 };
