@@ -1,45 +1,37 @@
 import {config} from "./config.js";
-
-export async function askGroq(prompt:string):Promise<string>{
- if(!config.groqApiKey) return "AI is not configured yet. Add GROQ_API_KEY in your host Variables settings, then redeploy.";
- let response:Response;
- try {
-  response=await fetch("https://api.groq.com/openai/v1/chat/completions",{
+export const aiProvider=()=>config.openaiApiKey?"OpenAI":config.groqApiKey?"Groq":"Not configured";
+export async function askGroq(prompt:string,style="friendly, concise Discord community tone"):Promise<string>{
+ const openai=Boolean(config.openaiApiKey);
+ const key=openai?config.openaiApiKey:config.groqApiKey;
+ if(!key)return "AI is not configured. Set a new OPENAI_API_KEY in Railway Variables, not in chat or GitHub.";
+ const url=openai?"https://api.openai.com/v1/chat/completions":"https://api.groq.com/openai/v1/chat/completions";
+ const model=openai?config.openaiModel:config.groqModel;
+ try{
+  const response=await fetch(url,{
    method:"POST",
-   headers:{"Authorization":`Bearer ${config.groqApiKey}`,"Content-Type":"application/json"},
+   headers:{"Authorization":"Bearer "+key,"Content-Type":"application/json"},
    body:JSON.stringify({
-    model:config.groqModel,
+    model,
     messages:[
-     {role:"system",content:"You are Zuzify Assistant, a helpful assistant for the Zuzify app ecosystem and its Discord community. Be clear, safe, and concise. Never claim to perform actions you did not perform."},
-     {role:"user",content:prompt.slice(0,6000)}
+     {role:"system",content:"You are Zuzify AI, an AI assistant for the Zuzify Discord community. Be helpful, kind, and accurate. Identify yourself as AI if asked. Use this general style guideline: "+style.slice(0,180)+". Never pretend to be a human server member, impersonate users, or invent access to private accounts. Do not imitate identifiable users' distinctive writing styles. Never reveal secrets."},
+     {role:"user",content:prompt.slice(0,3000)}
     ],
-    temperature:0.6,max_tokens:900
+    max_completion_tokens:550
    }),
-   signal:AbortSignal.timeout(30000)
+   signal:AbortSignal.timeout(25000)
   });
- } catch(error) {
-  console.error("Groq network/timeout error:",error instanceof Error?error.message:error);
-  return error instanceof Error && (error.name==="TimeoutError"||error.name==="AbortError")
-   ?"The AI provider timed out. Please try again."
-   :"Zuzify AI could not reach the provider. Check the host network and try again.";
- }
- if(!response.ok){
-  const details=await response.text().catch(()=>"");
-  console.error("Groq request failed:",response.status,details.slice(0,700));
-  let providerMessage="";
-  try {
-   const parsed=JSON.parse(details) as {error?:{message?:string;code?:string}};
-   providerMessage=parsed.error?.message||parsed.error?.code||"";
-  } catch {}
-  if(response.status===401||response.status===403) return "Groq rejected the API key or access. Check GROQ_API_KEY in host Variables.";
-  if(response.status===429) return "Groq rate limit or quota reached. Check your Groq account limits and try again.";
-  if(response.status===400||response.status===404){
-   console.error("Check GROQ_MODEL value:",config.groqModel);
-   return "The configured Groq model or request was rejected. Check GROQ_MODEL in host Variables and choose a currently available Groq model.";
+  if(!response.ok){
+   const raw=await response.text().catch(()=>"");
+   console.error("AI provider request failed",aiProvider(),response.status,raw.slice(0,260).replace(/sk-[\w-]+/g,"[redacted]"));
+   if(response.status===401||response.status===403)return "AI authentication failed. An admin needs to replace the provider key in Railway.";
+   if(response.status===429)return "AI is currently rate limited or out of credits. Try later.";
+   if(response.status===400||response.status===404)return "The configured AI model or request was rejected. Check OPENAI_MODEL or GROQ_MODEL.";
+   return "AI temporarily unavailable (HTTP "+response.status+").";
   }
-  if(response.status>=500) return "Groq is temporarily having a server problem. Try again shortly.";
-  return `Groq returned HTTP ${response.status}${providerMessage?`: ${providerMessage.slice(0,180)}`:""}. Check host logs for details.`;
+  const result=await response.json() as {choices?:Array<{message?:{content?:string|null}}>;error?:unknown};
+  return result.choices?.[0]?.message?.content?.trim()?.slice(0,3800)||"AI returned no response. Try asking differently.";
+ }catch(error){
+  console.error("AI provider connection error",error instanceof Error?error.name:"unknown");
+  return "AI connection timed out or could not reach the provider.";
  }
- const json=await response.json() as {choices?:Array<{message?:{content?:string}}>};
- return json.choices?.[0]?.message?.content?.trim()||"The AI returned an empty response. Try a different prompt.";
 }
