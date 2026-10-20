@@ -5,7 +5,7 @@ import {
 } from "discord.js";
 import {config} from "./config.js";
 import {db,logEvent,touchMember,getSetting,setSetting} from "./db.js";
-import {askGroq} from "./ai.js";
+import {askGroq,aiProvider} from "./ai.js";
 import {commands} from "./commands.js";
 import {startApi} from "./api.js";
 import {latestAnnouncements,publishAnnouncement} from "./ecosystem.js";
@@ -91,7 +91,7 @@ const lastHumanMessageAt=new Map<string,number>();
 let lastAutonomousPostAt=0;
 
 async function autonomousChatTick(){
- if(!config.aiChatEnabled||!config.groqApiKey||!config.aiChatChannelId) return;
+ if(!config.aiChatEnabled||!(config.openaiApiKey||config.groqApiKey)||!config.aiChatChannelId) return;
  const now=Date.now();
  if(now-lastAutonomousPostAt<config.aiChatIntervalMinutes*60_000) return;
  const channel=await client.channels.fetch(config.aiChatChannelId).catch(error=>{
@@ -105,7 +105,7 @@ async function autonomousChatTick(){
  const lastHuman=lastHumanMessageAt.get(config.aiChatChannelId)??now;
  if(now-lastHuman<config.aiChatIdleMinutes*60_000) return;
  lastAutonomousPostAt=now;
- const prompt="Write one short, natural Discord message to start a conversation in the Zuzify community while the chat is quiet. Make it feel like a real community member, not a system announcement. Vary the topic between technology, games, creative projects, app ideas, and light everyday conversation. Use at most 2 sentences, preferably one open-ended question. Do not mention inactivity, schedules, or that you are an AI. Do not use @everyone/@here, mass mentions, or markdown headings. Return only the message.";
+ const prompt="Write one short, natural Discord message to start a conversation in the Zuzify community while the chat is quiet. Make it feel like a real community member, not a system announcement. Vary the topic between technology, games, creative projects, app ideas, and light everyday conversation. Use at most 2 sentences, preferably one open-ended question. You are an AI community assistant; avoid pretending you are a human. Do not mention inactivity or schedules. Do not use @everyone/@here, mass mentions, or markdown headings. Return only the message.";
  const answer=(await askGroq(prompt)).trim();
  const failures=["AI is not configured","Groq rejected","Groq rate limit","Groq is temporarily","Groq returned","Zuzify AI could not","The AI provider timed out","The configured Groq model"];
  if(!answer||failures.some(marker=>answer.includes(marker))){
@@ -164,8 +164,8 @@ async function handleCommand(i:ChatInputCommandInteraction){
   const member=i.guildId?await memberData(i.guildId,i.user.id):null;
   return i.editReply({embeds:[embed("Your Zuzify overview","Discord: "+i.user.username+"\nLevel: "+(member?.level??"Not tracked")+"\nXP: "+(member?.xp??0)+"\nMessages: "+(member?.message_count??0)+"\nLinked sites: "+(links.map(a=>serviceNames[a.service as keyof typeof serviceNames]).join(", ")||"None"))]});
  }
- if(name==="version")return reply(i,"ZuzifyDiscordBot v"+config.version+" — secure ecosystem account linking, new stats, owner notifications, and expanded commands.");
- if(name==="changelog")return reply(i,"v"+config.version+": secure account linking, 20 new slash commands, private account statistics, owner update DMs, notifications, and diagnostics.");
+ if(name==="version")return reply(i,"ZuzifyDiscordBot v"+config.version+" — OpenAI-ready AI, community points, secure ecosystem account linking, new stats, owner notifications, and expanded commands.");
+ if(name==="changelog")return reply(i,"v"+config.version+": OpenAI-ready AI, server-selectable style, community points, 6 more slash commands, secure account linking, private account statistics, owner update DMs, notifications, and diagnostics.");
  if(name==="uptime")return reply(i,"Online for "+Math.floor((client.uptime||0)/60000)+" minutes. Gateway latency: "+client.ws.ping+"ms.");
  if(name==="privacy")return reply(i,"Zuzify account links are private to your Discord user. Website authentication runs directly with Supabase Auth in the browser; the bot stores only verified user IDs, not passwords or sessions. Use /unlinkaccount to disconnect. Personal website statistics are visible only to you.");
  if(name==="links")return reply(i,"Official Zuzify services:\nPrezzStore: https://prezz-store.vercel.app\nZuzify Socials: https://zuzifysocials.vercel.app\nZuzuOS: https://zuzuos.lol\nFor FastProxy, use the official URL shared by its owner.");
@@ -191,7 +191,7 @@ async function handleCommand(i:ChatInputCommandInteraction){
   return i.editReply(`Announcement published to Discord and stored for the Zuzify websites. ID: ${result.id}`);
  }
  if(name==="help"){
-  return i.reply({embeds:[embed("Zuzify Bot — Commands","**Accounts**\n/signup · /login · /linkaccount · /accounts · /accountstats · /unlinkaccount · /mystats\n\n**Community**\n/help · /ping · /ecosystem · /latestnews · /links · /ai · /profile · /rank · /leaderboard · /serverstats · /userinfo · /avatar · /serverinfo · /roleinfo · /channelinfo\n\n**Info**\n/version · /changelog · /uptime · /botstats · /privacy\n\n**Forms & support**\n/formpanel · /ticketpanel · /ticketstatus · /report · /suggest · /application · /poll\n\n**Moderation & setup**\n/setup · /rankrole · /rankconfig · /configchannel · /warn · /warnings · /warningscount · /timeout · /untimeout · /kick · /ban · /purge · /lock · /unlock · /slowmode · /nickname · /roleadd · /roleremove · /announce · /ecosystemannounce · /suggestionreview · /recentlogs · /owneralerttest")],ephemeral:true});
+  return i.reply({embeds:[embed("Zuzify Bot — Commands","**Accounts**\n/signup · /login · /linkaccount · /accounts · /accountstats · /unlinkaccount · /mystats\n\n**Community**\n/help · /ping · /ecosystem · /latestnews · /links · /ai · /aistatus · /aistyle · /ecosystemstatus · /profile · /rank · /leaderboard · /points · /pointsboard · /pointsguide · /serverstats · /userinfo · /avatar · /serverinfo · /roleinfo · /channelinfo\n\n**Info**\n/version · /changelog · /uptime · /botstats · /privacy\n\n**Forms & support**\n/formpanel · /ticketpanel · /ticketstatus · /report · /suggest · /application · /poll\n\n**Moderation & setup**\n/setup · /rankrole · /rankconfig · /configchannel · /warn · /warnings · /warningscount · /timeout · /untimeout · /kick · /ban · /purge · /lock · /unlock · /slowmode · /nickname · /roleadd · /roleremove · /announce · /ecosystemannounce · /suggestionreview · /recentlogs · /owneralerttest")],ephemeral:true});
  }
  if(name==="ping") return i.reply({embeds:[embed("Pong",`Gateway ping: ${client.ws.ping} ms\nRound-trip: ${Date.now()-i.createdTimestamp} ms`)],ephemeral:true});
  if(name==="about") return i.reply({embeds:[embed("Zuzify Discord Bot","A standalone community bot for the Zuzify app ecosystem. Includes persistent profiles, forms, rank rewards, moderation tools and optional Groq AI.")],ephemeral:true});
@@ -199,9 +199,36 @@ async function handleCommand(i:ChatInputCommandInteraction){
  if(name==="suggest") return openModal(i,"form:suggest","Submit a suggestion",[{id:"title",label:"Suggestion title",max:100},{id:"details",label:"Explain your idea",style:TextInputStyle.Paragraph,max:1500}]);
  if(name==="report") return openModal(i,"form:report","Submit a private report",[{id:"subject",label:"Report subject",max:100},{id:"details",label:"What happened? Include relevant context",style:TextInputStyle.Paragraph,max:1500}]);
  if(name==="application") return openModal(i,"form:application","Zuzify community application",[{id:"role",label:"What are you applying for?",max:100},{id:"experience",label:"Relevant experience",style:TextInputStyle.Paragraph,max:1000},{id:"why",label:"Why should we consider you?",style:TextInputStyle.Paragraph,max:1000}]);
+ if(name==="aistatus")return reply(i,"Zuzify AI provider: **"+aiProvider()+"**. Automatic messages: "+(config.aiChatEnabled?"enabled":"disabled")+". Model: "+(config.openaiApiKey?config.openaiModel:config.groqApiKey?config.groqModel:"none")+". API secrets are never displayed.");
+ if(name==="aistyle"){
+  if(!i.guildId||!i.memberPermissions?.has(PermissionFlagsBits.ManageGuild))return reply(i,"Manage Server permission required.");
+  const tone=i.options.getString("tone",true);
+  if(!["friendly","professional","playful","study"].includes(tone))return reply(i,"Invalid style.");
+  await setSetting(i.guildId,"ai_tone",tone);
+  return reply(i,"Zuzify AI response style set to "+tone+". The bot will not mimic individual members or store private chat histories.");
+ }
+ if(name==="ecosystemstatus"){
+  await i.deferReply({ephemeral:true});
+  const links=linkingReady()?await linkedAccounts(i.user.id):[];
+  return i.editReply("Zuzify integration overview\\n• Shared login verification: "+(linkingReady()?"configured":"unavailable")+"\\n• Linked services: "+(links.map(x=>x.service).join(", ")||"none")+"\\n• Announcements: supported\\n• Cross-site private statistics: "+(config.ecosystemServiceKey?"configured":"needs separate server key"));
+ }
+ if(name==="pointsguide")return reply(i,"You earn community points by participating in the server. **1 XP = 1 point.** Points follow existing rank cooldowns and anti-spam rules. Check /points, /pointsboard and /rank. No purchase is required.");
+ if(name==="points"||name==="pointsboard"){
+  if(!i.guildId)return reply(i,"Points are available in servers.");
+  await i.deferReply({ephemeral:true});
+  if(name==="points"){
+   const user=i.options.getUser("user")||i.user;
+   const member=await memberData(i.guildId,user.id);
+   return i.editReply("**"+user.username+"** has **"+(member?.xp??0)+" points** (XP), level **"+(member?.level??0)+"**.");
+  }
+  const {data,error}=await db.from("bot_members").select("username,xp").eq("guild_id",i.guildId).order("xp",{ascending:false}).limit(10);
+  if(error)throw new Error(error.message);
+  return i.editReply({embeds:[embed("Zuzify points leaderboard",(data||[]).map((x,n)=>(n+1)+". "+x.username+": **"+(x.xp??0)+" points**").join("\\n")||"No members have earned points yet.")]});
+ }
  if(name==="ai"){
   await i.deferReply({ephemeral:true});
-  const answer=await askGroq(i.options.getString("prompt",true));
+  const style=i.guildId?await getSetting(i.guildId,"ai_tone")||"friendly":"friendly";
+  const answer=await askGroq(i.options.getString("prompt",true),style);
   return i.editReply({embeds:[embed("Zuzify AI",answer.slice(0,4000))]});
  }
  if(!guild) return reply(i,"This command must be used in a server.");
