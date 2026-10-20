@@ -90,7 +90,7 @@ async function nameFor(service:Service,userId:string):Promise<string|null>{
  const {data,error}=await database().from(m.table).select(m.column).eq(m.key,userId).limit(1).maybeSingle();
  if(error)return null;
  if(!data)return null;
- const value=(data as Record<string,unknown>)[m.column];
+ const value=(data as unknown as Record<string,unknown>)[m.column];
  return typeof value==="string"&&m.column!=="user_id"?value.slice(0,80):null;
 }
 export async function accountStats(discordId:string,service:Service){
