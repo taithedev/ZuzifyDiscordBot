@@ -29,8 +29,8 @@ const commands = [
    .addIntegerOption(o=>o.setName("cooldown").setDescription("Seconds between XP awards").setMinValue(5).setMaxValue(3600))
    .addIntegerOption(o=>o.setName("level_step").setDescription("XP needed per level step").setMinValue(50).setMaxValue(5000)),
  new SlashCommandBuilder().setName("ai").setDescription("Ask Zuzify AI").addStringOption(o=>o.setName("prompt").setDescription("What should the AI help with?").setRequired(true).setMaxLength(1500)),
- new SlashCommandBuilder().setName("signup").setDescription("Create an optional Zuzify bot account using a modal"),
- new SlashCommandBuilder().setName("login").setDescription("Sign in to your optional Zuzify bot account"),
+ new SlashCommandBuilder().setName("signup").setDescription("Learn how to register a Zuzify website account"),
+ new SlashCommandBuilder().setName("login").setDescription("Securely sign in and link an existing Zuzify account").addStringOption(o=>o.setName("service").setDescription("Website account").setRequired(true).addChoices({name:"PrezzStore",value:"prezzstore"},{name:"Zuzify Socials",value:"zuzifysocials"},{name:"ZuzuOS",value:"zuzuos"},{name:"FastProxy",value:"fastproxy"})),
  new SlashCommandBuilder().setName("suggest").setDescription("Submit a suggestion using a form"),
  new SlashCommandBuilder().setName("report").setDescription("Submit a private report using a form"),
  new SlashCommandBuilder().setName("formpanel").setDescription("Post a panel with clickable form buttons").setDefaultMemberPermissions(admin),
