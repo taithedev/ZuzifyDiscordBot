@@ -1,9 +1,11 @@
 import {createClient} from "@supabase/supabase-js";
 import {config} from "./config.js";
+import {queueOwnerLog} from "./owner-alerts.js";
 export const db=createClient(config.supabaseUrl,config.supabaseServiceKey,{auth:{persistSession:false,autoRefreshToken:false}});
 export async function logEvent(guildId:string,userId:string|null,type:string,data:Record<string,unknown>={}) {
  const {error}=await db.from("bot_events").insert({guild_id:guildId,discord_user_id:userId,event_type:type,data});
  if(error) console.error("Event log failed:",error.message);
+ if(!error) queueOwnerLog(type,guildId,userId);
  if(!error&&guildId!=="dm"){
   try{
    const channelId=await getSetting(guildId,"log_channel");
