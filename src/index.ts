@@ -163,7 +163,7 @@ async function handleCommand(i:ChatInputCommandInteraction){
   };
   if(sub==="view"){
    await i.deferReply({ephemeral:true});
-   const lines=await Promise.all(Object.keys(defaults).map(async k=>k+": **"+(await getSetting(guild.id,k)??defaults[k]||"not set")+"**"));
+   const lines=await Promise.all(Object.keys(defaults).map(async k=>k+": **"+((await getSetting(guild.id,k))??(defaults[k]||"not set"))+"**"));
    return i.editReply({content:"**Owner configuration — "+guild.name+"**\n"+lines.join("\n")+"\nUse /ownerconfig set or /ownerconfig reset. API keys are managed only in Railway."});
   }
   const key=i.options.getString("setting",true);
