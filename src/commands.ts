@@ -7,7 +7,7 @@ const commands = [
  new SlashCommandBuilder().setName("ping").setDescription("Check bot latency"),
  new SlashCommandBuilder().setName("ecosystem").setDescription("Show connected Zuzify services"),
  new SlashCommandBuilder().setName("latestnews").setDescription("Read recent ecosystem announcements"),
- new SlashCommandBuilder().setName("ecosystemannounce").setDescription("Publish an ecosystem-wide announcement").setDefaultMemberPermissions(admin)
+ new SlashCommandBuilder().setName("ecosystemannounce").setDescription("Publish an ecosystem-wide announcement")
    .addChannelOption(o=>o.setName("channel").setDescription("Discord destination").setRequired(true).addChannelTypes(ChannelType.GuildText,ChannelType.GuildAnnouncement))
    .addStringOption(o=>o.setName("title").setDescription("Headline").setRequired(true).setMaxLength(150))
    .addStringOption(o=>o.setName("message").setDescription("Announcement content").setRequired(true).setMaxLength(1800)),
@@ -16,14 +16,14 @@ const commands = [
  new SlashCommandBuilder().setName("profile").setDescription("Show your or another member's profile").addUserOption(o=>o.setName("user").setDescription("Member to inspect")),
  new SlashCommandBuilder().setName("leaderboard").setDescription("Show the server XP leaderboard"),
  new SlashCommandBuilder().setName("rank").setDescription("Show a member's XP and rank").addUserOption(o=>o.setName("user").setDescription("Member to inspect")),
- new SlashCommandBuilder().setName("setup").setDescription("Create default rank roles and configure the bot").setDefaultMemberPermissions(admin),
- new SlashCommandBuilder().setName("configchannel").setDescription("Set a channel for logs, suggestions, reports or applications").setDefaultMemberPermissions(admin)
+ new SlashCommandBuilder().setName("setup").setDescription("Create default rank roles and configure the bot"),
+ new SlashCommandBuilder().setName("configchannel").setDescription("Set a channel for logs, suggestions, reports or applications")
    .addStringOption(o=>o.setName("purpose").setDescription("What the channel is used for").setRequired(true).addChoices({name:"Logs",value:"log_channel"},{name:"Suggestions",value:"suggestion_channel"},{name:"Reports",value:"report_channel"},{name:"Applications",value:"application_channel"},{name:"Tickets",value:"ticket_channel"}))
    .addChannelOption(o=>o.setName("channel").setDescription("Target text channel").setRequired(true).addChannelTypes(ChannelType.GuildText,ChannelType.GuildAnnouncement)),
- new SlashCommandBuilder().setName("rankrole").setDescription("Assign a role reward to a level").setDefaultMemberPermissions(admin)
+ new SlashCommandBuilder().setName("rankrole").setDescription("Assign a role reward to a level")
    .addIntegerOption(o=>o.setName("level").setDescription("Level required").setRequired(true).setMinValue(1).setMaxValue(1000))
    .addRoleOption(o=>o.setName("role").setDescription("Role to grant at that level").setRequired(true)),
- new SlashCommandBuilder().setName("rankconfig").setDescription("Configure XP gain and rank role rewards").setDefaultMemberPermissions(admin)
+ new SlashCommandBuilder().setName("rankconfig").setDescription("Configure XP gain and rank role rewards")
    .addIntegerOption(o=>o.setName("xp_min").setDescription("Minimum XP per message").setMinValue(1).setMaxValue(100))
    .addIntegerOption(o=>o.setName("xp_max").setDescription("Maximum XP per message").setMinValue(1).setMaxValue(200))
    .addIntegerOption(o=>o.setName("cooldown").setDescription("Seconds between XP awards").setMinValue(5).setMaxValue(3600))
@@ -33,7 +33,7 @@ const commands = [
  new SlashCommandBuilder().setName("login").setDescription("Securely sign in and link an existing Zuzify account").addStringOption(o=>o.setName("service").setDescription("Website account").setRequired(true).addChoices({name:"PrezzStore",value:"prezzstore"},{name:"Zuzify Socials",value:"zuzifysocials"},{name:"ZuzuOS",value:"zuzuos"},{name:"FastProxy",value:"fastproxy"})),
  new SlashCommandBuilder().setName("suggest").setDescription("Submit a suggestion using a form"),
  new SlashCommandBuilder().setName("report").setDescription("Submit a private report using a form"),
- new SlashCommandBuilder().setName("formpanel").setDescription("Post a panel with clickable form buttons").setDefaultMemberPermissions(admin),
+ new SlashCommandBuilder().setName("formpanel").setDescription("Post a panel with clickable form buttons"),
  new SlashCommandBuilder().setName("application").setDescription("Submit a community/team application form"),
  new SlashCommandBuilder().setName("poll").setDescription("Create a poll with two to five options")
    .addStringOption(o=>o.setName("question").setDescription("Poll question").setRequired(true).setMaxLength(200))
@@ -42,44 +42,44 @@ const commands = [
    .addStringOption(o=>o.setName("option3").setDescription("Optional third option").setMaxLength(80))
    .addStringOption(o=>o.setName("option4").setDescription("Optional fourth option").setMaxLength(80))
    .addStringOption(o=>o.setName("option5").setDescription("Optional fifth option").setMaxLength(80)),
- new SlashCommandBuilder().setName("ticketpanel").setDescription("Post a support ticket panel").setDefaultMemberPermissions(admin),
- new SlashCommandBuilder().setName("suggestionreview").setDescription("Review a suggestion").setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages)
+ new SlashCommandBuilder().setName("ticketpanel").setDescription("Post a support ticket panel"),
+ new SlashCommandBuilder().setName("suggestionreview").setDescription("Review a suggestion")
    .addStringOption(o=>o.setName("id").setDescription("Suggestion ID").setRequired(true))
    .addStringOption(o=>o.setName("decision").setDescription("Decision").setRequired(true).addChoices({name:"Approve",value:"approved"},{name:"Deny",value:"denied"}))
    .addStringOption(o=>o.setName("note").setDescription("Optional review note").setMaxLength(500)),
- new SlashCommandBuilder().setName("warn").setDescription("Warn a member").setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
+ new SlashCommandBuilder().setName("warn").setDescription("Warn a member")
    .addUserOption(o=>o.setName("user").setDescription("Member to warn").setRequired(true))
    .addStringOption(o=>o.setName("reason").setDescription("Reason").setRequired(true).setMaxLength(500)),
- new SlashCommandBuilder().setName("warnings").setDescription("List a member's warnings").setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
+ new SlashCommandBuilder().setName("warnings").setDescription("List a member's warnings")
    .addUserOption(o=>o.setName("user").setDescription("Member").setRequired(true)),
- new SlashCommandBuilder().setName("timeout").setDescription("Timeout a member").setDefaultMemberPermissions(mod)
+ new SlashCommandBuilder().setName("timeout").setDescription("Timeout a member")
    .addUserOption(o=>o.setName("user").setDescription("Member").setRequired(true))
    .addIntegerOption(o=>o.setName("minutes").setDescription("Duration in minutes").setRequired(true).setMinValue(1).setMaxValue(40320))
    .addStringOption(o=>o.setName("reason").setDescription("Reason").setMaxLength(500)),
- new SlashCommandBuilder().setName("untimeout").setDescription("Remove a member timeout").setDefaultMemberPermissions(mod)
+ new SlashCommandBuilder().setName("untimeout").setDescription("Remove a member timeout")
    .addUserOption(o=>o.setName("user").setDescription("Member").setRequired(true)),
- new SlashCommandBuilder().setName("kick").setDescription("Kick a member").setDefaultMemberPermissions(PermissionFlagsBits.KickMembers)
+ new SlashCommandBuilder().setName("kick").setDescription("Kick a member")
    .addUserOption(o=>o.setName("user").setDescription("Member").setRequired(true))
    .addStringOption(o=>o.setName("reason").setDescription("Reason").setMaxLength(500)),
- new SlashCommandBuilder().setName("ban").setDescription("Ban a member").setDefaultMemberPermissions(PermissionFlagsBits.BanMembers)
+ new SlashCommandBuilder().setName("ban").setDescription("Ban a member")
    .addUserOption(o=>o.setName("user").setDescription("Member").setRequired(true))
    .addStringOption(o=>o.setName("reason").setDescription("Reason").setMaxLength(500)),
- new SlashCommandBuilder().setName("purge").setDescription("Delete recent messages").setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages)
+ new SlashCommandBuilder().setName("purge").setDescription("Delete recent messages")
    .addIntegerOption(o=>o.setName("amount").setDescription("Number of messages (1-100)").setRequired(true).setMinValue(1).setMaxValue(100)),
- new SlashCommandBuilder().setName("lock").setDescription("Lock this text channel").setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels),
- new SlashCommandBuilder().setName("unlock").setDescription("Unlock this text channel").setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels),
- new SlashCommandBuilder().setName("slowmode").setDescription("Set this channel's slowmode").setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels)
+ new SlashCommandBuilder().setName("lock").setDescription("Lock this text channel"),
+ new SlashCommandBuilder().setName("unlock").setDescription("Unlock this text channel"),
+ new SlashCommandBuilder().setName("slowmode").setDescription("Set this channel's slowmode")
    .addIntegerOption(o=>o.setName("seconds").setDescription("Seconds (0 disables)").setRequired(true).setMinValue(0).setMaxValue(21600)),
- new SlashCommandBuilder().setName("nickname").setDescription("Set a member's nickname").setDefaultMemberPermissions(PermissionFlagsBits.ManageNicknames)
+ new SlashCommandBuilder().setName("nickname").setDescription("Set a member's nickname")
    .addUserOption(o=>o.setName("user").setDescription("Member").setRequired(true))
    .addStringOption(o=>o.setName("nickname").setDescription("New nickname; blank not supported").setRequired(true).setMaxLength(32)),
- new SlashCommandBuilder().setName("roleadd").setDescription("Give a role to a member").setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles)
+ new SlashCommandBuilder().setName("roleadd").setDescription("Give a role to a member")
    .addUserOption(o=>o.setName("user").setDescription("Member").setRequired(true))
    .addRoleOption(o=>o.setName("role").setDescription("Role").setRequired(true)),
- new SlashCommandBuilder().setName("roleremove").setDescription("Remove a role from a member").setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles)
+ new SlashCommandBuilder().setName("roleremove").setDescription("Remove a role from a member")
    .addUserOption(o=>o.setName("user").setDescription("Member").setRequired(true))
    .addRoleOption(o=>o.setName("role").setDescription("Role").setRequired(true)),
- new SlashCommandBuilder().setName("announce").setDescription("Send an announcement to a channel").setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages)
+ new SlashCommandBuilder().setName("announce").setDescription("Send an announcement to a channel")
    .addChannelOption(o=>o.setName("channel").setDescription("Target text channel").setRequired(true).addChannelTypes(ChannelType.GuildText,ChannelType.GuildAnnouncement))
    .addStringOption(o=>o.setName("message").setDescription("Announcement text").setRequired(true).setMaxLength(1800)),
 
@@ -101,11 +101,11 @@ const commands = [
  new SlashCommandBuilder().setName("channelinfo").setDescription("Inspect the current Discord channel"),
  new SlashCommandBuilder().setName("ticketstatus").setDescription("Check whether your support ticket is open"),
  new SlashCommandBuilder().setName("warningscount").setDescription("Check your number of warnings"),
- new SlashCommandBuilder().setName("recentlogs").setDescription("Show recent audit activity (staff only)").setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
+ new SlashCommandBuilder().setName("recentlogs").setDescription("Show recent audit activity (staff only)"),
  new SlashCommandBuilder().setName("points").setDescription("View points and XP earned from participating in this server").addUserOption(o=>o.setName("user").setDescription("Member to check")),
  new SlashCommandBuilder().setName("pointsboard").setDescription("See top points earners on this server"),
  new SlashCommandBuilder().setName("aistatus").setDescription("Check Zuzify AI provider and configuration status"),
- new SlashCommandBuilder().setName("aistyle").setDescription("Choose Zuzify AI response tone (server managers)").setDefaultMemberPermissions(admin)
+ new SlashCommandBuilder().setName("aistyle").setDescription("Choose Zuzify AI response tone (server managers)")
   .addStringOption(o=>o.setName("tone").setDescription("Response style").setRequired(true).addChoices({name:"Friendly",value:"friendly"},{name:"Professional",value:"professional"},{name:"Playful",value:"playful"},{name:"Study helper",value:"study"})),
  new SlashCommandBuilder().setName("ecosystemstatus").setDescription("Show available Zuzify integrations and linked accounts"),
  new SlashCommandBuilder().setName("pointsguide").setDescription("Explain how to earn points and ranks"),
@@ -117,6 +117,6 @@ const commands = [
  new SlashCommandBuilder().setName("gifs").setDescription("View your saved GIF inventory"),
  new SlashCommandBuilder().setName("gifuse").setDescription("Post a saved GIF").addStringOption(o=>o.setName("name").setDescription("Saved GIF name").setRequired(true)),
  new SlashCommandBuilder().setName("gifremove").setDescription("Remove a GIF from your inventory").addStringOption(o=>o.setName("name").setDescription("Saved GIF name").setRequired(true)),
- new SlashCommandBuilder().setName("owneralerttest").setDescription("Test the private developer notification system (owner only)").setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+ new SlashCommandBuilder().setName("owneralerttest").setDescription("Test the private developer notification system (owner only)"),
 ].map(data=>({data}));
 export { commands };
