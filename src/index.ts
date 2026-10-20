@@ -155,7 +155,7 @@ async function handleCommand(i:ChatInputCommandInteraction){
   await i.deferReply({ephemeral:true});
   const stats=await accountStats(i.user.id,service);
   if(!stats)return i.editReply("This "+serviceNames[service]+" account is not linked. Use /linkaccount first.");
-  const lines=Object.entries(stats.metrics).map(([k,v])=>"**"+k.replace(/([A-Z])/g," $1")+":** "+(v===null?"Unavailable":v)).join("\n");
+  const lines=stats.statsReady?Object.entries(stats.metrics).map(([k,v])=>"**"+k.replace(/([A-Z])/g," $1")+":** "+(v===null?"Unavailable":v)).join("\n"):"Website statistics require a separate read-only connection to the shared Zuzify database. Your account link is verified.";
   return i.editReply({embeds:[embed(serviceNames[service]+" — private account stats",(stats.displayName?"Account: "+stats.displayName+"\n":"")+(lines||"No statistics available yet."))]});
  }
  if(name==="mystats"){
