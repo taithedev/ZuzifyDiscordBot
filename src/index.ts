@@ -3,15 +3,14 @@ import {
  ModalBuilder, TextInputBuilder, TextInputStyle, ChannelType, PermissionFlagsBits, type Interaction,
  type ChatInputCommandInteraction, type ModalSubmitInteraction, type ButtonInteraction, type GuildMember, type TextChannel
 } from "discord.js";
-import {randomBytes,scrypt as scryptCallback,timingSafeEqual} from "node:crypto";
-import {promisify} from "node:util";
 import {config} from "./config.js";
 import {db,logEvent,touchMember,getSetting,setSetting} from "./db.js";
 import {askGroq} from "./ai.js";
 import {commands} from "./commands.js";
 import {startApi} from "./api.js";
 import {latestAnnouncements,publishAnnouncement} from "./ecosystem.js";
-const scrypt=promisify(scryptCallback);
+import {createChallenge,linkedAccounts,unlinkAccount,accountStats,isService,serviceNames,linkingReady} from "./account-link.js";
+import {urgentOwnerAlert,queueOwnerLog} from "./owner-alerts.js";
 const client=new Client({intents:[GatewayIntentBits.Guilds,GatewayIntentBits.GuildMembers,GatewayIntentBits.GuildMessages]});
 const colors={brand:0x7458e8,good:0x35b779,bad:0xe05252};
 const embed=(title:string,description:string,color=colors.brand)=>new EmbedBuilder().setTitle(title).setDescription(description).setColor(color).setTimestamp();
@@ -127,6 +126,55 @@ async function handleCommand(i:ChatInputCommandInteraction){
  const name=i.commandName;
  const guild=i.guild;
  if(guild) void touchMember(guild.id,i.user).catch(error=>console.error("Member tracking failed:",error));
+
+ if(name==="signup") return reply(i,"Create your account on the official Zuzify website (PrezzStore, Zuzify Socials, ZuzuOS or FastProxy), then use /login or /linkaccount to connect it. Never give your website password to a Discord command.");
+ if(name==="login"||name==="linkaccount"){
+  const service=i.options.getString("service",true);
+  if(!isService(service))return reply(i,"Select a supported Zuzify service.");
+  await i.deferReply({ephemeral:true});
+  const url=await createChallenge(i.user.id,service);
+  return i.editReply({content:"Verify your existing **"+serviceNames[service]+"** account using this private one-time link (expires in 10 minutes):\n"+url+"\n\nThe sign-in happens in your browser, directly with Supabase Auth. Do not share this URL."});
+ }
+ if(name==="accounts"){
+  await i.deferReply({ephemeral:true});
+  if(!linkingReady())return i.editReply("Account linking is not configured on this bot host.");
+  const links=await linkedAccounts(i.user.id);
+  return i.editReply({embeds:[embed("Your linked Zuzify accounts",links.map(a=>"• **"+serviceNames[a.service as keyof typeof serviceNames]+"** — linked <t:"+Math.floor(new Date(a.linked_at).getTime()/1000)+":R>").join("\n")||"No linked accounts yet. Use /linkaccount to verify one.")]});
+ }
+ if(name==="unlinkaccount"){
+  const service=i.options.getString("service",true);
+  if(!isService(service))return reply(i,"Unsupported service.");
+  await i.deferReply({ephemeral:true});
+  const removed=await unlinkAccount(i.user.id,service);
+  if(removed)queueOwnerLog("ecosystem_link_removed",i.guildId||"dm",i.user.id);
+  return i.editReply(removed?"Disconnected "+serviceNames[service]+".":"No "+serviceNames[service]+" account was linked.");
+ }
+ if(name==="accountstats"){
+  const service=i.options.getString("service",true);
+  if(!isService(service))return reply(i,"Unsupported service.");
+  await i.deferReply({ephemeral:true});
+  const stats=await accountStats(i.user.id,service);
+  if(!stats)return i.editReply("This "+serviceNames[service]+" account is not linked. Use /linkaccount first.");
+  const lines=Object.entries(stats.metrics).map(([k,v])=>"**"+k.replace(/([A-Z])/g," $1")+":** "+(v===null?"Unavailable":v)).join("\n");
+  return i.editReply({embeds:[embed(serviceNames[service]+" — private account stats",(stats.displayName?"Account: "+stats.displayName+"\n":"")+(lines||"No statistics available yet."))]});
+ }
+ if(name==="mystats"){
+  await i.deferReply({ephemeral:true});
+  const links=linkingReady()?await linkedAccounts(i.user.id):[];
+  const member=i.guildId?await memberData(i.guildId,i.user.id):null;
+  return i.editReply({embeds:[embed("Your Zuzify overview","Discord: "+i.user.username+"\nLevel: "+(member?.level??"Not tracked")+"\nXP: "+(member?.xp??0)+"\nMessages: "+(member?.message_count??0)+"\nLinked sites: "+(links.map(a=>serviceNames[a.service as keyof typeof serviceNames]).join(", ")||"None"))]});
+ }
+ if(name==="version")return reply(i,"ZuzifyDiscordBot v"+config.version+" — secure ecosystem account linking, new stats, owner notifications, and expanded commands.");
+ if(name==="changelog")return reply(i,"v"+config.version+": secure account linking, 20 new slash commands, private account statistics, owner update DMs, notifications, and diagnostics.");
+ if(name==="uptime")return reply(i,"Online for "+Math.floor((client.uptime||0)/60000)+" minutes. Gateway latency: "+client.ws.ping+"ms.");
+ if(name==="privacy")return reply(i,"Zuzify account links are private to your Discord user. Website authentication runs directly with Supabase Auth in the browser; the bot stores only verified user IDs, not passwords or sessions. Use /unlinkaccount to disconnect. Personal website statistics are visible only to you.");
+ if(name==="links")return reply(i,"Official Zuzify services:\nPrezzStore: https://prezz-store.vercel.app\nZuzify Socials: https://zuzifysocials.vercel.app\nZuzuOS: https://zuzuos.lol\nFor FastProxy, use the official URL shared by its owner.");
+ if(name==="owneralerttest"){
+  if(!isOwner(i.user.id)&&i.user.id!==config.ownerAlertId)return reply(i,"Only the bot owner can test private alerts.");
+  await i.deferReply({ephemeral:true});
+  await urgentOwnerAlert("Zuzify notification test","Requested by Discord "+i.user.id+" in "+(i.guildId||"DM")+".");
+  return i.editReply("Notification test requested. Delivery depends on the owner's DM privacy settings and the Discord API.");
+ }
  if(name==="ecosystem") return i.reply({embeds:[embed("Zuzify Ecosystem","Connected services: ZuzuOS (zuzuos.lol), Zuzify Socials, and the Zuzify Discord Bot. Announcements are backed by Supabase.")],ephemeral:true});
  if(name==="latestnews") {
   await i.deferReply({ephemeral:true});
@@ -148,8 +196,6 @@ async function handleCommand(i:ChatInputCommandInteraction){
  if(name==="ping") return i.reply({embeds:[embed("Pong",`Gateway ping: ${client.ws.ping} ms\nRound-trip: ${Date.now()-i.createdTimestamp} ms`)],ephemeral:true});
  if(name==="about") return i.reply({embeds:[embed("Zuzify Discord Bot","A standalone community bot for the Zuzify app ecosystem. Includes persistent profiles, forms, rank rewards, moderation tools and optional Groq AI.")],ephemeral:true});
  if((name==="suggest"||name==="report"||name==="application")&&!guild) return reply(i,"Use this form inside your Discord server.");
- if(name==="signup") return openModal(i,"account:signup","Create Zuzify account",[{id:"username",label:"Username",placeholder:"3–24 letters, numbers or underscores",max:24},{id:"password",label:"Unique passphrase; do not reuse passwords",style:TextInputStyle.Paragraph,max:120}]);
- if(name==="login") return openModal(i,"account:login","Sign in to Zuzify account",[{id:"username",label:"Account username",max:24},{id:"password",label:"Account passphrase",style:TextInputStyle.Paragraph,max:120}]);
  if(name==="suggest") return openModal(i,"form:suggest","Submit a suggestion",[{id:"title",label:"Suggestion title",max:100},{id:"details",label:"Explain your idea",style:TextInputStyle.Paragraph,max:1500}]);
  if(name==="report") return openModal(i,"form:report","Submit a private report",[{id:"subject",label:"Report subject",max:100},{id:"details",label:"What happened? Include relevant context",style:TextInputStyle.Paragraph,max:1500}]);
  if(name==="application") return openModal(i,"form:application","Zuzify community application",[{id:"role",label:"What are you applying for?",max:100},{id:"experience",label:"Relevant experience",style:TextInputStyle.Paragraph,max:1000},{id:"why",label:"Why should we consider you?",style:TextInputStyle.Paragraph,max:1000}]);
@@ -214,8 +260,7 @@ async function handleCommand(i:ChatInputCommandInteraction){
    new ButtonBuilder().setCustomId("form:application").setLabel("Application").setStyle(ButtonStyle.Success)
   );
   const row2=new ActionRowBuilder<ButtonBuilder>().addComponents(
-   new ButtonBuilder().setCustomId("account:signup").setLabel("Create account").setStyle(ButtonStyle.Secondary),
-   new ButtonBuilder().setCustomId("account:login").setLabel("Login").setStyle(ButtonStyle.Secondary)
+   new ButtonBuilder().setCustomId("account:link").setLabel("Link Zuzify account").setStyle(ButtonStyle.Secondary)
   );
   return i.reply({embeds:[embed("Zuzify Forms","Choose a button below. Forms are submitted privately to the bot.")],components:[row1,row2]});
  }
@@ -305,27 +350,6 @@ async function handleCommand(i:ChatInputCommandInteraction){
  return reply(i,"That command is not implemented yet.");
 }
 async function handleModal(i:ModalSubmitInteraction){
- if(i.customId==="account:signup"||i.customId==="account:login"){
-  const username=i.fields.getTextInputValue("username").trim().toLowerCase();
-  const password=i.fields.getTextInputValue("password");
-  if(!/^[a-z0-9_]{3,24}$/.test(username)) return reply(i,"Username must be 3–24 characters using letters, numbers or underscores.");
-  if(password.length<10||password.length>120) return reply(i,"Use a unique passphrase between 10 and 120 characters. Do not reuse your Discord or email password.");
-  if(i.customId==="account:signup"){
-   const salt=randomBytes(16).toString("hex"),derived=await scrypt(password,salt,64) as Buffer;
-   const {error}=await db.from("bot_accounts").insert({discord_user_id:i.user.id,username,password_hash:`${salt}:${derived.toString("hex")}`});
-   if(error){if(error.code==="23505") return reply(i,"That username is already taken, or your Discord account already has a linked bot account.");throw new Error(error.message);}
-   return reply(i,"Account created and linked to your Discord user. Never reuse a real account password.");
-  }
-  const {data,error}=await db.from("bot_accounts").select("id,password_hash").eq("discord_user_id",i.user.id).eq("username",username).maybeSingle();
-  if(error) throw new Error(error.message);
-  if(!data) return reply(i,"No matching account is linked to this Discord user. Use /signup first.");
-  const [salt,hash]=String(data.password_hash).split(":");
-  const actual=await scrypt(password,salt,64) as Buffer,expected=Buffer.from(hash,"hex");
-  if(actual.length!==expected.length||!timingSafeEqual(actual,expected)) return reply(i,"Invalid username or passphrase.");
-  await db.from("bot_accounts").update({last_login_at:new Date().toISOString()}).eq("id",data.id);
-  await logEvent(i.guildId||"dm",i.user.id,"account_login");
-  return reply(i,"Signed in successfully. Your account is linked to this Discord user.");
- }
  if(i.customId.startsWith("form:")){
   if(i.customId==="form:suggest"){
    const title=i.fields.getTextInputValue("title"),details=i.fields.getTextInputValue("details");
@@ -357,7 +381,7 @@ client.on(Events.InteractionCreate,async (raw:Interaction)=>{
     await db.from("bot_tickets").update({status:"closed",closed_at:new Date().toISOString()}).eq("guild_id",i.guild.id).eq("channel_id",i.channel.id);
     const channelToDelete=i.channel;
     setTimeout(()=>{void channelToDelete.delete("Ticket closed").catch(()=>null);},5000);
-   }else if(i.customId.startsWith("account:")) await openModal(i,i.customId,i.customId.endsWith("signup")?"Create Zuzify account":"Sign in to Zuzify account",[{id:"username",label:"Username",max:24},{id:"password",label:"Unique passphrase",style:TextInputStyle.Paragraph,max:120}]);
+   }else if(i.customId==="account:link") await reply(i,"Run /linkaccount, choose a Zuzify website, and privately verify your account in the browser.");
    else if(i.customId==="form:suggest") await openModal(i,i.customId,"Submit a suggestion",[{id:"title",label:"Suggestion title",max:100},{id:"details",label:"Explain your idea",style:TextInputStyle.Paragraph,max:1500}]);
    else if(i.customId==="form:report") await openModal(i,i.customId,"Submit a private report",[{id:"subject",label:"Report subject",max:100},{id:"details",label:"What happened?",style:TextInputStyle.Paragraph,max:1500}]);
    else if(i.customId==="form:application") await openModal(i,i.customId,"Community application",[{id:"role",label:"Applying for",max:100},{id:"experience",label:"Relevant experience",style:TextInputStyle.Paragraph,max:1000},{id:"why",label:"Why should we consider you?",style:TextInputStyle.Paragraph,max:1000}]);
