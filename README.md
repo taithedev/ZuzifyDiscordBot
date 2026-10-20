@@ -2,17 +2,43 @@
 
 Standalone Discord bot for the Zuzify ecosystem. It does not depend on ZuzifySocials source code.
 
+## Version 1.2.0 — secure ecosystem accounts
+
+The bot now includes **55 slash commands** covering existing moderation, support, announcements,
+XP, plus verified Zuzify website accounts, personal statistics, role/channel info,
+staff audit history, version/uptime, and owner alerts.
+
+**Existing website accounts, not passwords in Discord**
+- `/signup` directs members to the Zuzify websites.
+- `/login service:<site>` or `/linkaccount service:<site>` returns a private, single-use verification link.
+- The link opens `GET /link` on the bot's HTTPS host; the browser authenticates directly to Supabase Auth.
+- `POST /api/v1/link/complete` verifies the access token with Supabase, consumes a hashed ten-minute challenge, and associates the Discord ID with the verified Supabase user ID.
+- `/accounts`, `/accountstats`, `/mystats`, and `/unlinkaccount` only operate on the invoking Discord user's linked identities.
+- The bot never asks for a website password in a Discord modal, and never saves an access token or password on its server.
+- Linking applies to accounts hosted in the **shared** `zuzify` Supabase Auth project. Independently hosted Zuzify sites or social-only OAuth accounts may require additional sign-in integration.
+
+**Configuration required for this upgrade**
+1. Keep the bot's existing `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` pointed at its existing bot database, without overwriting them. This project may differ from the websites' Supabase project.
+2. On the bot's Railway service, set `ECOSYSTEM_SUPABASE_URL=https://wfqudstuncdldsvxqveu.supabase.co` and `ECOSYSTEM_SUPABASE_SERVICE_ROLE_KEY` to the **secret server-side service key** for the shared `zuzify` project. Never put it into GitHub or website JavaScript.
+3. Set `ECOSYSTEM_SUPABASE_PUBLISHABLE_KEY` to the public publishable key for the shared project, and `BOT_PUBLIC_URL` to the bot's publicly reachable **HTTPS origin** (no path or trailing slash). The shared project's public key is in `.env.example`.
+4. The two new tables `bot_ecosystem_links` and `bot_link_challenges` were created in the connected shared project. For another shared project, apply `supabase/migrations/003_discord_ecosystem_links.sql` once there. Both tables enable RLS and deny `anon`/`authenticated` table access.
+5. Keep `BOT_OWNER_ALERT_ID=1052713883753775164` for the owner's Discord DM recipient; this is the default. The owner must permit bot DMs. Use `/owneralerttest` to request a delivery test.
+
+The bot sends a DM when a newly observed version starts, on ecosystem announcements, and digests of audit events. The digest intentionally batches routine logs to avoid Discord spam/rate limits. Bot owner DMs are best-effort: the bot cannot force a delivery when a user blocks DMs.
+
+**Validation:** GitHub Actions runs `npm run check` and `npm run build`. A successful build does not prove a Railway deployment or Discord API connectivity, which must be verified separately. If the Railway service is connected to `main` with auto-deploy enabled it should deploy commits automatically; if not, deploy the latest commit from Railway.
+
 ## Features
 - Slash commands and permission checks
 - Supabase persistence for profiles, activity, settings, warnings, tickets, suggestions, polls, forms and XP
 - Rank and XP system with optional automatic Discord role rewards
-- Modal-based forms for signup, login, suggestions, reports, support tickets and custom applications
+- Modal-based forms for suggestions, reports, support tickets and custom applications; website login is verified in the browser
 - Moderation: warn, timeout, kick, ban, purge, lock/unlock, slowmode, nickname, role add/remove and announce
 - Community tools: profile, leaderboard, server stats, polls, tickets, suggestion review and reports
 - Groq-powered AI assistant plus autonomous conversation starters in a configured general channel
 - Private Supabase Storage bucket for attachments, with expiring signed upload URLs
 - Protected HTTP API for health, guild statistics, member profiles, and upload URL issuance
-- Passwords hashed with scrypt; no plain-text password storage
+- Legacy bot-only password accounts remain in the old database for backward compatibility but are no longer created or used through Discord commands
 
 ## Setup
 1. Copy .env.example to .env and fill in Discord token, client ID, Supabase URL and service-role key. Never commit .env or expose the service key.
@@ -32,7 +58,7 @@ Standalone Discord bot for the Zuzify ecosystem. It does not depend on ZuzifySoc
 - /help lists command groups.
 
 ## Security and behavior
-- Signup/login are optional bot-local accounts, not Discord authentication. Never reuse a Discord password.
+- Signup/login now link existing shared-Supabase website accounts through a verified browser flow; no password modal is used in Discord.
 - Rank roles are configured per server. Admins must run setup before rank role rewards can be assigned.
 - This repository is not hosted automatically by creating it on GitHub; configure a persistent Node host.
 
