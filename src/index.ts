@@ -388,16 +388,23 @@ async function handleCommand(i:ChatInputCommandInteraction){
   return reply(i,"Application "+decision+". Applicant DM "+(delivered?"delivered.":"could not be delivered (privacy settings)."));
  }
  if(name==="gifsearch"){
-  const key=process.env.GIPHY_API_KEY?.trim();
-  if(!key)return reply(i,"GIF search requires a GIPHY_API_KEY set privately in Railway. Saved GIF inventory works without a key.");
-  await i.deferReply({ephemeral:true});
   const q=i.options.getString("query",true);
-  const url="https://api.giphy.com/v1/gifs/search?api_key="+encodeURIComponent(key)+"&q="+encodeURIComponent(q)+"&limit=5&rating=g";
-  const response=await fetch(url,{signal:AbortSignal.timeout(9000)});
-  if(!response.ok)return i.editReply("GIF provider temporarily unavailable.");
-  const result=await response.json() as {data?:Array<{title?:string;images?:{original?:{url?:string}}}>};
-  const results=(result.data||[]).map((x,n)=>(n+1)+". "+(x.title||"GIF")+": "+(x.images?.original?.url||"")).filter(x=>x.length<650);
-  return i.editReply(results.join("\n")||"No GIFs found.");
+  const provider=i.options.getString("provider")||"giphy";
+  const key=(provider==="tenor"?process.env.TENOR_API_KEY:process.env.GIPHY_API_KEY)?.trim();
+  const directoryUrl=provider==="tenor"?"https://tenor.com/search/"+encodeURIComponent(q)+"-gifs":"https://giphy.com/search/"+encodeURIComponent(q);
+  if(!key)return reply(i,"Live "+provider+" GIF search requires a "+(provider==="tenor"?"TENOR_API_KEY":"GIPHY_API_KEY")+" in Railway. You can browse "+directoryUrl+" and save a direct GIF URL using /gifsave.");
+  await i.deferReply({ephemeral:true});
+  const url=provider==="tenor"
+   ?"https://tenor.googleapis.com/v2/search?key="+encodeURIComponent(key)+"&q="+encodeURIComponent(q)+"&limit=5&media_filter=gif&contentfilter=high"
+   :"https://api.giphy.com/v1/gifs/search?api_key="+encodeURIComponent(key)+"&q="+encodeURIComponent(q)+"&limit=5&rating=g";
+  try{
+   const response=await fetch(url,{signal:AbortSignal.timeout(9000)});
+   if(!response.ok)return i.editReply("GIF provider unavailable (HTTP "+response.status+").");
+   const result=await response.json() as {data?:Array<{title?:string;images?:{original?:{url?:string}}}>;results?:Array<{content_description?:string;media_formats?:{gif?:{url?:string}}}>};
+   const matches=provider==="tenor"?(result.results||[]).map(x=>({title:x.content_description,url:x.media_formats?.gif?.url})):(result.data||[]).map(x=>({title:x.title,url:x.images?.original?.url}));
+   const lines=matches.map((x,n)=>(n+1)+". "+String(x.title||"GIF").slice(0,55)+": "+(x.url||"")).filter(x=>x.length<550);
+   return i.editReply((lines.join("\n")||"No matching GIFs.")+"\nSave any result with /gifsave.");
+  }catch{return i.editReply("GIF search timed out. Try again.");}
  }
  if(["gifsave","gifs","gifuse","gifremove"].includes(name)){
   const settingKey="gif_inventory_"+i.user.id;
@@ -445,6 +452,9 @@ async function handleCommand(i:ChatInputCommandInteraction){
  if(name==="timeout"||name==="untimeout"||name==="kick"||name==="ban"){
   const user=i.options.getUser("user",true),member=await guild.members.fetch(user.id).catch(()=>null);
   if(!member) return reply(i,"That member is not in this server.");
+  if(member.id===guild.ownerId)return reply(i,"The server owner cannot be moderated.");
+  const actor=await guild.members.fetch(i.user.id).catch(()=>null);
+  if(actor&&i.user.id!==guild.ownerId&&member.roles.highest.position>=actor.roles.highest.position)return reply(i,"You cannot moderate someone with an equal or higher Discord role.");
   if(member.id===i.user.id||member.id===client.user?.id) return reply(i,"You cannot moderate yourself or the bot.");
   const reason=i.options.getString("reason")||`Action by ${i.user.tag}`;
   const actionLabel=name==="timeout"?"Timed out":name==="kick"?"Kicked":name==="ban"?"Banned":"Timeout removed";
