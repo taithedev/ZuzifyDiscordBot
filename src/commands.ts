@@ -111,6 +111,31 @@ const commands = [
  new SlashCommandBuilder().setName("pointsguide").setDescription("Explain how to earn points and ranks"),
  new SlashCommandBuilder().setName("applicationreview").setDescription("Approve or decline an application and DM the applicant").addStringOption(o=>o.setName("id").setDescription("Application ID").setRequired(true)).addStringOption(o=>o.setName("decision").setDescription("Decision").setRequired(true).addChoices({name:"Accepted",value:"accepted"},{name:"Declined",value:"declined"})).addStringOption(o=>o.setName("note").setDescription("Optional message").setMaxLength(400)),
  new SlashCommandBuilder().setName("staffrole").setDescription("Assign a Discord role to a staff permission tier").addStringOption(o=>o.setName("tier").setDescription("Tier").setRequired(true).addChoices({name:"Moderator",value:"moderator"},{name:"Community Manager",value:"community_manager"},{name:"Admin",value:"admin"},{name:"Owner",value:"owner"})).addRoleOption(o=>o.setName("role").setDescription("Role").setRequired(true)),
+ new SlashCommandBuilder().setName("ownerconfig").setDescription("Owner-only configuration for the entire Zuzify bot")
+  .addSubcommand(o=>o.setName("view").setDescription("Show every configurable setting"))
+  .addSubcommand(o=>o.setName("set").setDescription("Change a validated bot setting")
+   .addStringOption(x=>x.setName("setting").setDescription("Setting to change").setRequired(true).addChoices(
+    {name:"AI conversation messages",value:"ai_chat_enabled"},
+    {name:"AI channel",value:"ai_chat_channel"},
+    {name:"AI inactivity minutes",value:"ai_idle_minutes"},
+    {name:"AI interval minutes",value:"ai_interval_minutes"},
+    {name:"AI tone",value:"ai_tone"},
+    {name:"XP minimum",value:"xp_min"},
+    {name:"XP maximum",value:"xp_max"},
+    {name:"XP cooldown seconds",value:"xp_cooldown"},
+    {name:"XP per level",value:"level_step"},
+    {name:"XP earning",value:"xp_enabled"},
+    {name:"Member action DMs",value:"moderation_dms"},
+    {name:"Applications DMs",value:"application_dms"},
+    {name:"Audit log channel",value:"log_channel"},
+    {name:"Suggestion channel",value:"suggestion_channel"},
+    {name:"Application channel",value:"application_channel"},
+    {name:"Report channel",value:"report_channel"},
+    {name:"Announcement channel",value:"announcement_channel"}
+   ))
+   .addStringOption(x=>x.setName("value").setDescription("True/false, valid number, tone, or channel ID").setRequired(true).setMaxLength(100)))
+  .addSubcommand(o=>o.setName("reset").setDescription("Restore a setting to its default")
+   .addStringOption(x=>x.setName("setting").setDescription("Setting to reset").setRequired(true))),
  new SlashCommandBuilder().setName("staffperms").setDescription("See staff permission tiers"),
  new SlashCommandBuilder().setName("gifsearch").setDescription("Search Tenor or GIPHY GIFs").addStringOption(o=>o.setName("query").setDescription("Search terms").setRequired(true).setMaxLength(80)).addStringOption(o=>o.setName("provider").setDescription("Search provider").addChoices({name:"GIPHY",value:"giphy"},{name:"Tenor",value:"tenor"})),
  new SlashCommandBuilder().setName("gifsave").setDescription("Save a safe HTTPS GIF URL to your inventory").addStringOption(o=>o.setName("name").setDescription("Name").setRequired(true).setMaxLength(28)).addStringOption(o=>o.setName("url").setDescription("Direct GIF URL").setRequired(true).setMaxLength(450)),
