@@ -12,16 +12,16 @@ staff audit history, version/uptime, and owner alerts.
 - `/signup` directs members to the Zuzify websites.
 - `/login service:<site>` or `/linkaccount service:<site>` returns a private, single-use verification link.
 - The link opens `GET /link` on the bot's HTTPS host; the browser authenticates directly to Supabase Auth.
-- `POST /api/v1/link/complete` verifies the access token with Supabase, consumes a hashed ten-minute challenge, and associates the Discord ID with the verified Supabase user ID.
+- `POST /api/v1/link/complete` verifies the access token with the shared Supabase Auth project, consumes a hashed ten-minute challenge, and saves only the verified account UUID in the bot's private `bot_settings` table.
 - `/accounts`, `/accountstats`, `/mystats`, and `/unlinkaccount` only operate on the invoking Discord user's linked identities.
 - The bot never asks for a website password in a Discord modal, and never saves an access token or password on its server.
 - Linking applies to accounts hosted in the **shared** `zuzify` Supabase Auth project. Independently hosted Zuzify sites or social-only OAuth accounts may require additional sign-in integration.
 
 **Configuration required for this upgrade**
 1. Keep the bot's existing `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` pointed at its existing bot database, without overwriting them. This project may differ from the websites' Supabase project.
-2. On the bot's Railway service, set `ECOSYSTEM_SUPABASE_URL=https://wfqudstuncdldsvxqveu.supabase.co` and `ECOSYSTEM_SUPABASE_SERVICE_ROLE_KEY` to the **secret server-side service key** for the shared `zuzify` project. Never put it into GitHub or website JavaScript.
+2. On the bot's Railway service, set `ECOSYSTEM_SUPABASE_URL=https://wfqudstuncdldsvxqveu.supabase.co`. The verified account flow uses Supabase Auth with the public key; no second service-role key is required. `ECOSYSTEM_SUPABASE_SERVICE_ROLE_KEY` is **optional** and is used for private website statistics; without it, account linking works but site-specific private counters show unavailable.
 3. Set `ECOSYSTEM_SUPABASE_PUBLISHABLE_KEY` to the public publishable key for the shared project, and `BOT_PUBLIC_URL` to the bot's publicly reachable **HTTPS origin** (no path or trailing slash). The shared project's public key is in `.env.example`.
-4. The two new tables `bot_ecosystem_links` and `bot_link_challenges` were created in the connected shared project. For another shared project, apply `supabase/migrations/003_discord_ecosystem_links.sql` once there. Both tables enable RLS and deny `anon`/`authenticated` table access.
+4. The current bot uses its **existing** private `bot_settings` table for links and one-time challenges, so no bot-side migration is required. The optional `003_discord_ecosystem_links.sql` creates dedicated tables but is **not used by this implementation**.
 5. Keep `BOT_OWNER_ALERT_ID=1052713883753775164` for the owner's Discord DM recipient; this is the default. The owner must permit bot DMs. Use `/owneralerttest` to request a delivery test.
 
 The bot sends a DM when a newly observed version starts, on ecosystem announcements, and digests of audit events. The digest intentionally batches routine logs to avoid Discord spam/rate limits. Bot owner DMs are best-effort: the bot cannot force a delivery when a user blocks DMs.
