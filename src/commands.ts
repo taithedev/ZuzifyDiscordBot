@@ -81,7 +81,7 @@ const commands = [
    .addRoleOption(o=>o.setName("role").setDescription("Role").setRequired(true)),
  new SlashCommandBuilder().setName("announce").setDescription("Send an announcement to a channel").setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages)
    .addChannelOption(o=>o.setName("channel").setDescription("Target text channel").setRequired(true).addChannelTypes(ChannelType.GuildText,ChannelType.GuildAnnouncement))
-   .addStringOption(o=>o.setName("message").setDescription("Announcement text").setRequired(true).setMaxLength(1800))
+   .addStringOption(o=>o.setName("message").setDescription("Announcement text").setRequired(true).setMaxLength(1800)),
 
  new SlashCommandBuilder().setName("linkaccount").setDescription("Securely connect an existing Zuzify website account").addStringOption(o=>o.setName("service").setDescription("Which website account to connect").setRequired(true).addChoices({name:"PrezzStore",value:"prezzstore"},{name:"Zuzify Socials",value:"zuzifysocials"},{name:"ZuzuOS",value:"zuzuos"},{name:"FastProxy",value:"fastproxy"})),
  new SlashCommandBuilder().setName("accounts").setDescription("List your privately linked Zuzify accounts"),
