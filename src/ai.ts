@@ -1,11 +1,12 @@
 import {config} from "./config.js";
 export const aiProvider=()=>config.openaiApiKey?"OpenAI":config.groqApiKey?"Groq":"Not configured";
-export async function askGroq(prompt:string,style="friendly, concise Discord community tone"):Promise<string>{
+export async function askGroq(prompt:string,style="friendly, concise Discord community tone",requestedModel?:string):Promise<string>{
  const openai=Boolean(config.openaiApiKey);
  const key=openai?config.openaiApiKey:config.groqApiKey;
  if(!key)return "AI is not configured. Set a new OPENAI_API_KEY in Railway Variables, not in chat or GitHub.";
  const url=openai?"https://api.openai.com/v1/chat/completions":"https://api.groq.com/openai/v1/chat/completions";
- const model=openai?config.openaiModel:config.groqModel;
+ const models=["gpt-5-nano","gpt-5-mini","gpt-4.1-nano","gpt-4.1-mini"];
+ const model=openai?(requestedModel&&models.includes(requestedModel)?requestedModel:config.openaiModel):config.groqModel;
  try{
   const response=await fetch(url,{
    method:"POST",
@@ -16,7 +17,7 @@ export async function askGroq(prompt:string,style="friendly, concise Discord com
      {role:"system",content:"You are Zuzify AI, an AI assistant for the Zuzify Discord community. Be helpful, kind, and accurate. Identify yourself as AI if asked. Use this general style guideline: "+style.slice(0,180)+". Never pretend to be a human server member, impersonate users, or invent access to private accounts. Do not imitate identifiable users' distinctive writing styles. Never reveal secrets."},
      {role:"user",content:prompt.slice(0,3000)}
     ],
-    max_completion_tokens:550
+    max_completion_tokens:240
    }),
    signal:AbortSignal.timeout(25000)
   });
