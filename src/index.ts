@@ -91,9 +91,13 @@ const lastHumanMessageAt=new Map<string,number>();
 let lastAutonomousPostAt=0;
 
 async function autonomousChatTick(){
- if(!config.aiChatEnabled||!(config.openaiApiKey||config.groqApiKey)||!config.aiChatChannelId) return;
+ if(!(config.openaiApiKey||config.groqApiKey)||!config.aiChatChannelId) return;
+ const chatGuild=client.guilds.cache.find(g=>g.channels.cache.has(config.aiChatChannelId));
+ if(!chatGuild)return;
+ if((await getSetting(chatGuild.id,"ai_chat_enabled")||String(config.aiChatEnabled))!=="true")return;
  const now=Date.now();
- if(now-lastAutonomousPostAt<config.aiChatIntervalMinutes*60_000) return;
+ const aiInterval=Number(await getSetting(chatGuild.id,"ai_interval_minutes")||config.aiChatIntervalMinutes);
+ if(now-lastAutonomousPostAt<aiInterval*60_000) return;
  const channel=await client.channels.fetch(config.aiChatChannelId).catch(error=>{
   console.error("Autonomous AI channel lookup failed:",error instanceof Error?error.message:error);
   return null;
@@ -103,7 +107,8 @@ async function autonomousChatTick(){
   return;
  }
  const lastHuman=lastHumanMessageAt.get(config.aiChatChannelId)??now;
- if(now-lastHuman<config.aiChatIdleMinutes*60_000) return;
+ const aiIdle=Number(await getSetting(chatGuild.id,"ai_idle_minutes")||config.aiChatIdleMinutes);
+ if(now-lastHuman<aiIdle*60_000) return;
  lastAutonomousPostAt=now;
  const prompt="Write one short, natural Discord message to start a conversation in the Zuzify community while the chat is quiet. Make it feel like a real community member, not a system announcement. Vary the topic between technology, games, creative projects, app ideas, and light everyday conversation. Use at most 2 sentences, preferably one open-ended question. You are an AI community assistant; avoid pretending you are a human. Do not mention inactivity or schedules. Do not use @everyone/@here, mass mentions, or markdown headings. Return only the message.";
  const answer=(await askGroq(prompt)).trim();
@@ -148,6 +153,50 @@ async function handleCommand(i:ChatInputCommandInteraction){
  const requiredTier=Object.entries(roleActions).find(([,names])=>names.includes(name))?.[0];
  if(requiredTier && tierPower[tier]<tierPower[requiredTier])
   return reply(i,"Staff access denied. Requires the **"+requiredTier.replace("_"," ")+"** tier or higher. Ask the server owner to assign a tier using /staffrole.");
+ if(name==="ownerconfig"){
+  if(!guild||tier!=="owner")return reply(i,"Only the server owner or configured bot owner can configure the bot.");
+  const sub=i.options.getSubcommand(true);
+  const defaults:Record<string,string>={
+   ai_chat_enabled:"false",ai_chat_channel:config.aiChatChannelId,ai_idle_minutes:String(config.aiChatIdleMinutes),ai_interval_minutes:String(config.aiChatIntervalMinutes),
+   ai_tone:"friendly",xp_min:"8",xp_max:"15",xp_cooldown:"45",level_step:"100",xp_enabled:"true",moderation_dms:"true",application_dms:"true",
+   log_channel:"",suggestion_channel:"",application_channel:"",report_channel:"",announcement_channel:""
+  };
+  if(sub==="view"){
+   await i.deferReply({ephemeral:true});
+   const lines=await Promise.all(Object.keys(defaults).map(async k=>k+": **"+(await getSetting(guild.id,k)??defaults[k]||"not set")+"**"));
+   return i.editReply({content:"**Owner configuration — "+guild.name+"**\n"+lines.join("\n")+"\nUse /ownerconfig set or /ownerconfig reset. API keys are managed only in Railway."});
+  }
+  const key=i.options.getString("setting",true);
+  if(!(key in defaults))return reply(i,"Unknown setting. Use /ownerconfig view to see available keys.");
+  if(sub==="reset"){
+   await setSetting(guild.id,key,defaults[key]);
+   return reply(i,"Restored **"+key+"** to its default.");
+  }
+  const raw=i.options.getString("value",true).trim();
+  let value=raw;
+  const bools=["ai_chat_enabled","xp_enabled","moderation_dms","application_dms"];
+  const nums:Record<string,[number,number]>={ai_idle_minutes:[5,1440],ai_interval_minutes:[20,1440],xp_min:[1,100],xp_max:[1,200],xp_cooldown:[5,3600],level_step:[50,5000]};
+  const channels=["ai_chat_channel","log_channel","suggestion_channel","application_channel","report_channel","announcement_channel"];
+  if(bools.includes(key)){
+   if(!["true","false"].includes(raw.toLowerCase()))return reply(i,"Enter true or false.");
+   value=raw.toLowerCase();
+  }else if(key in nums){
+   const n=Number(raw),[min,max]=nums[key];
+   if(!Number.isInteger(n)||n<min||n>max)return reply(i,"Enter a whole number from "+min+" to "+max+".");
+   value=String(n);
+  }else if(key==="ai_tone"){
+   if(!["friendly","professional","playful","study"].includes(raw))return reply(i,"Choose friendly, professional, playful, or study.");
+  }else if(channels.includes(key)){
+   const match=raw.match(/^(?:<#)?(\d{15,25})>?$/);
+   if(!match)return reply(i,"Enter a Discord channel ID or mention.");
+   const channel=await guild.channels.fetch(match[1]).catch(()=>null);
+   if(!channel?.isTextBased())return reply(i,"This must be a text channel belonging to this server.");
+   value=match[1];
+  }
+  await setSetting(guild.id,key,value);
+  await logEvent(guild.id,i.user.id,"owner_config_updated",{setting:key,value});
+  return reply(i,"Saved **"+key+"** = **"+value+"**. Changes apply without redeploying.");
+ }
  if(name==="signup") return reply(i,"Create your account on the official Zuzify website (PrezzStore, Zuzify Socials, ZuzuOS or FastProxy), then use /login or /linkaccount to connect it. Never give your website password to a Discord command.");
  if(name==="login"||name==="linkaccount"){
   const service=i.options.getString("service",true);
@@ -383,7 +432,7 @@ async function handleCommand(i:ChatInputCommandInteraction){
   if(!data)return reply(i,"Application not found. Use its exact ID.");
   await setSetting(guild.id,"application_decision_"+id,JSON.stringify({decision,note,by:i.user.id}));
   const applicant=await client.users.fetch(data.discord_user_id).catch(()=>null);
-  const delivered=Boolean(await applicant?.send("Your application to **"+guild.name+"** ("+data.title+") has been **"+decision+"**."+ (note?"\nNote: "+note:"")).then(()=>true).catch(()=>false));
+  const delivered=(await getSetting(guild.id,"application_dms"))==="false"?false:Boolean(await applicant?.send("Your application to **"+guild.name+"** ("+data.title+") has been **"+decision+"**."+ (note?"\nNote: "+note:"")).then(()=>true).catch(()=>false));
   await logEvent(guild.id,i.user.id,"application_"+decision,{id,applicant:data.discord_user_id,delivered});
   return reply(i,"Application "+decision+". Applicant DM "+(delivered?"delivered.":"could not be delivered (privacy settings)."));
  }
@@ -440,7 +489,7 @@ async function handleCommand(i:ChatInputCommandInteraction){
   const {error}=await db.from("bot_warnings").insert({guild_id:guild.id,discord_user_id:user.id,moderator_id:i.user.id,reason});
   if(error) throw new Error(error.message);
   await logEvent(guild.id,i.user.id,"member_warned",{target:user.id,reason});
-  await user.send(`Moderation notice — ${guild.name}\nAction: Warning\nReason: ${reason}`).catch(()=>null);
+  if((await getSetting(guild.id,"moderation_dms"))!=="false")await user.send(`Moderation notice — ${guild.name}\nAction: Warning\nReason: ${reason}`).catch(()=>null);
   return reply(i,`Warned ${user.tag}. Reason: ${reason}`);
  }
  if(name==="warnings"){
@@ -463,7 +512,7 @@ async function handleCommand(i:ChatInputCommandInteraction){
   else if(name==="untimeout") await member.timeout(null,reason);
   else if(name==="kick") await member.kick(reason);
   else await guild.members.ban(user.id,{reason});
-  await user.send(`Moderation notice — ${guild.name}\nAction: ${actionLabel}${duration?" ("+duration+" minutes)":""}\nReason: ${reason}`).catch(()=>null);
+  if((await getSetting(guild.id,"moderation_dms"))!=="false")await user.send(`Moderation notice — ${guild.name}\nAction: ${actionLabel}${duration?" ("+duration+" minutes)":""}\nReason: ${reason}`).catch(()=>null);
   await logEvent(guild.id,i.user.id,name,{target:user.id,reason});
   return reply(i,`${name} completed for ${user.tag}.`);
  }
@@ -557,6 +606,7 @@ client.on(Events.MessageCreate,async message=>{
   const cooldownKey=`xp_last_${message.author.id}`;
   const now=Date.now(),last=Number(await getSetting(message.guild.id,cooldownKey)||0);
   const cooldown=Number(await getSetting(message.guild.id,"xp_cooldown")||45)*1000;
+  if((await getSetting(message.guild.id,"xp_enabled"))==="false")return;
   if(now-last<cooldown) return;
   await setSetting(message.guild.id,cooldownKey,String(now));
   const min=Number(await getSetting(message.guild.id,"xp_min")||8),max=Number(await getSetting(message.guild.id,"xp_max")||15);
