@@ -8,6 +8,7 @@ export const config={
  token:required("DISCORD_TOKEN"), clientId:required("DISCORD_CLIENT_ID"),
  guildId:process.env.DISCORD_GUILD_ID?.trim()||"",
  supabaseUrl:required("SUPABASE_URL"), supabaseServiceKey:required("SUPABASE_SERVICE_ROLE_KEY"),
+ openaiApiKey:process.env.OPENAI_API_KEY?.trim()||"", openaiModel:process.env.OPENAI_MODEL?.trim()||"gpt-4.1-mini",
  groqApiKey:process.env.GROQ_API_KEY?.trim()||"", groqModel:process.env.GROQ_MODEL?.trim()||"openai/gpt-oss-120b",
  ownerIds:(process.env.BOT_OWNER_IDS||"").split(",").map(x=>x.trim()).filter(Boolean),
  apiKey:process.env.BOT_API_KEY?.trim()||"", apiPort:Number(process.env.PORT||process.env.BOT_API_PORT||3000),
@@ -20,6 +21,6 @@ export const config={
  ecosystemServiceKey:process.env.ECOSYSTEM_SUPABASE_SERVICE_ROLE_KEY?.trim()||"",
  ecosystemPublishableKey:process.env.ECOSYSTEM_SUPABASE_PUBLISHABLE_KEY?.trim()||"",
  ownerAlertId:process.env.BOT_OWNER_ALERT_ID?.trim()||"1052713883753775164",
- version:process.env.BOT_VERSION?.trim()||"1.2.0",
+ version:process.env.BOT_VERSION?.trim()||"1.3.0",
  status:process.env.BOT_STATUS?.trim()||"Zuzify ecosystem | /help"
 };
