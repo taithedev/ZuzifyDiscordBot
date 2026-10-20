@@ -153,6 +153,30 @@ async function handleCommand(i:ChatInputCommandInteraction){
  const requiredTier=Object.entries(roleActions).find(([,names])=>names.includes(name))?.[0];
  if(requiredTier && tierPower[tier]<tierPower[requiredTier])
   return reply(i,"Staff access denied. Requires the **"+requiredTier.replace("_"," ")+"** tier or higher. Ask the server owner to assign a tier using /staffrole.");
+ if(name==="aimodel"){
+  if(!guild)return reply(i,"Use this command in your server.");
+  const sub=i.options.getSubcommand(true);
+  if(sub==="view"){
+   const model=await getSetting(guild.id,"ai_model")||config.openaiModel;
+   return reply(i,"AI provider: "+aiProvider()+"\nCurrent model: **"+model+"**\nMax reply tokens: 240\nAI personalization is opt-in. Model selection is owner-only.");
+  }
+  if(tier!=="owner")return reply(i,"Only owners can change AI models.");
+  const model=i.options.getString("model",true);
+  if(!["gpt-5-nano","gpt-5-mini","gpt-4.1-nano","gpt-4.1-mini"].includes(model))return reply(i,"Unsupported model.");
+  await setSetting(guild.id,"ai_model",model);
+  return reply(i,"AI model set to **"+model+"** for this server. Changes apply on the next AI request.");
+ }
+ if(name==="rememberme"){
+  if(!guild)return reply(i,"Use this in your server.");
+  const enabled=i.options.getString("choice",true)==="on";
+  await setSetting(guild.id,"ai_consent_"+i.user.id,enabled?"true":"false");
+  return reply(i,enabled?"Basic profile context enabled for your AI questions. No message history is collected.":"AI personalization disabled and preference cleared. Existing XP tracking stays separate.");
+ }
+ if(name==="aiprofile"){
+  if(!guild)return reply(i,"Use this in a server.");
+  const enabled=(await getSetting(guild.id,"ai_consent_"+i.user.id))==="true";
+  return reply(i,"AI personalization: **"+(enabled?"On":"Off")+"**. When enabled, the bot may use your Discord display name, current server XP/level and your own question. It does not copy other members' messages or read private DMs.");
+ }
  if(name==="ownerconfig"){
   if(!guild||tier!=="owner")return reply(i,"Only the server owner or configured bot owner can configure the bot.");
   const sub=i.options.getSubcommand(true);
@@ -269,7 +293,7 @@ async function handleCommand(i:ChatInputCommandInteraction){
  if(name==="suggest") return openModal(i,"form:suggest","Submit a suggestion",[{id:"title",label:"Suggestion title",max:100},{id:"details",label:"Explain your idea",style:TextInputStyle.Paragraph,max:1500}]);
  if(name==="report") return openModal(i,"form:report","Submit a private report",[{id:"subject",label:"Report subject",max:100},{id:"details",label:"What happened? Include relevant context",style:TextInputStyle.Paragraph,max:1500}]);
  if(name==="application") return openModal(i,"form:application","Zuzify community application",[{id:"role",label:"What are you applying for?",max:100},{id:"experience",label:"Relevant experience",style:TextInputStyle.Paragraph,max:1000},{id:"why",label:"Why should we consider you?",style:TextInputStyle.Paragraph,max:1000}]);
- if(name==="aistatus")return reply(i,"Zuzify AI provider: **"+aiProvider()+"**. Automatic messages: "+(config.aiChatEnabled?"enabled":"disabled")+". Model: "+(config.openaiApiKey?config.openaiModel:config.groqApiKey?config.groqModel:"none")+". API secrets are never displayed.");
+ if(name==="aistatus")return reply(i,"Zuzify AI provider: **"+aiProvider()+"**. Automatic messages: "+(config.aiChatEnabled?"enabled":"disabled")+". Model: "+(i.guildId?(await getSetting(i.guildId,"ai_model")||config.openaiModel):config.openaiModel)+". API secrets are never displayed.");
  if(name==="aistyle"){
   if(!i.guildId)return reply(i,"Use this in a server.");
   const tone=i.options.getString("tone",true);
@@ -298,7 +322,11 @@ async function handleCommand(i:ChatInputCommandInteraction){
  if(name==="ai"){
   await i.deferReply({ephemeral:true});
   const style=i.guildId?await getSetting(i.guildId,"ai_tone")||"friendly":"friendly";
-  const answer=await askGroq(i.options.getString("prompt",true),style);
+  const model=i.guildId?await getSetting(i.guildId,"ai_model")||config.openaiModel:config.openaiModel;
+  const consent=i.guildId&&(await getSetting(i.guildId,"ai_consent_"+i.user.id))==="true";
+  const member=consent&&i.guildId?await memberData(i.guildId,i.user.id):null;
+  const personalization=consent?" Your current user is "+i.user.username+"; XP "+(member?.xp??0)+"; level "+(member?.level??0)+".":" Personalization disabled.";
+  const answer=await askGroq(i.options.getString("prompt",true),style+personalization,model);
   return i.editReply({embeds:[embed("Zuzify AI",answer.slice(0,4000))]});
  }
  if(!guild) return reply(i,"This command must be used in a server.");
