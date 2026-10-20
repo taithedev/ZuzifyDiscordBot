@@ -1,5 +1,6 @@
 import {db} from "./db.js";
 import {config} from "./config.js";
+import {urgentOwnerAlert} from "./owner-alerts.js";
 
 export const ecosystemSites=["zuzuos","zuzifysocials"] as const;
 export async function latestAnnouncements(limit=20) {
@@ -23,5 +24,6 @@ export async function publishAnnouncement(input:{guildId:string;title:string;bod
  }
  const {data,error}=await db.from("bot_announcements").insert({guild_id:guildId,source,title:title.trim(),body:body.trim(),created_by:createdBy??null,discord_channel_id:channelId??null,discord_message_id:messageId??null}).select("id,created_at").single();
  if(error) throw new Error(`Announcement storage failed: ${error.message}`);
+ void urgentOwnerAlert("Zuzify ecosystem update",title.trim()+"\n"+source+" · "+guildId+"\n"+body.slice(0,500)).catch(()=>null);
  return {...data,discordMessageId:messageId??null};
 }
