@@ -347,6 +347,79 @@ async function handleCommand(i:ChatInputCommandInteraction){
   await db.from("bot_polls").insert({guild_id:guild.id,discord_user_id:i.user.id,question,options,message_id:sent.id});
   return;
  }
+ const ownerStaff=isOwner(i.user.id)||i.user.id===guild.ownerId;
+ const staffTiers=["moderator","community_manager","admin","owner"] as const;
+ async function staffTier(){
+  if(ownerStaff)return "owner";
+  const member=await guild.members.fetch(i.user.id).catch(()=>null);
+  if(!member)return "member";
+  for(const tier of ["owner","admin","community_manager","moderator"] as const){
+   const id=await getSetting(guild.id,"staff_role_"+tier);
+   if(id&&member.roles.cache.has(id))return tier;
+  }
+  return "member";
+ }
+ const tier=await staffTier();
+ const capabilities:{[key:string]:string[]}={
+  moderator:["warn","warnings","timeout","untimeout","purge","ticketpanel","ticketstatus"],
+  community_manager:["suggestionreview","applicationreview","announce","poll","formpanel"],
+  admin:["setup","configchannel","rankrole","rankconfig","kick","ban","lock","unlock","slowmode","nickname","roleadd","roleremove","aistyle","ecosystemannounce","recentlogs"],
+  owner:["staffrole","owneralerttest"]
+ };
+ const tierPower:{[key:string]:number}={member:0,moderator:1,community_manager:2,admin:3,owner:4};
+ const needed=Object.entries(capabilities).find(([,names])=>names.includes(name))?.[0];
+ if(needed && tierPower[tier]<tierPower[needed])return reply(i,"Insufficient staff tier. Requires "+needed.replace("_"," ")+" or above. Ask the owner to configure /staffrole.");
+ if(name==="staffperms")return reply(i,"Your staff tier: **"+tier+"**. Tiers are separate and ordered: Moderator (warnings/timeouts), Community Manager (applications/announcements), Admin (kicks/bans/configuration), Owner (staff role assignments). Discord's own channel and role permissions still apply.");
+ if(name==="staffrole"){
+  const target=i.options.getString("tier",true),role=i.options.getRole("role",true);
+  if(!staffTiers.includes(target as typeof staffTiers[number]))return reply(i,"Unknown tier.");
+  await setSetting(guild.id,"staff_role_"+target,role.id);
+  return reply(i,"Assigned **"+role.name+"** to **"+target+"** tier.");
+ }
+ if(name==="applicationreview"){
+  const id=i.options.getString("id",true),decision=i.options.getString("decision",true),note=i.options.getString("note")||"";
+  const {data,error}=await db.from("bot_forms").select("id,discord_user_id,title").eq("guild_id",guild.id).eq("form_type","application").eq("id",id).maybeSingle();
+  if(error)throw new Error(error.message);
+  if(!data)return reply(i,"Application not found. Use its exact ID.");
+  await setSetting(guild.id,"application_decision_"+id,JSON.stringify({decision,note,by:i.user.id}));
+  const applicant=await client.users.fetch(data.discord_user_id).catch(()=>null);
+  const delivered=Boolean(await applicant?.send("Your application to **"+guild.name+"** ("+data.title+") has been **"+decision+"**."+ (note?"\nNote: "+note:"")).then(()=>true).catch(()=>false));
+  await logEvent(guild.id,i.user.id,"application_"+decision,{id,applicant:data.discord_user_id,delivered});
+  return reply(i,"Application "+decision+". Applicant DM "+(delivered?"delivered.":"could not be delivered (privacy settings)."));
+ }
+ if(name==="gifsearch"){
+  const key=process.env.GIPHY_API_KEY?.trim();
+  if(!key)return reply(i,"GIF search requires a GIPHY_API_KEY set privately in Railway. Saved GIF inventory works without a key.");
+  await i.deferReply({ephemeral:true});
+  const q=i.options.getString("query",true);
+  const url="https://api.giphy.com/v1/gifs/search?api_key="+encodeURIComponent(key)+"&q="+encodeURIComponent(q)+"&limit=5&rating=g";
+  const response=await fetch(url,{signal:AbortSignal.timeout(9000)});
+  if(!response.ok)return i.editReply("GIF provider temporarily unavailable.");
+  const result=await response.json() as {data?:Array<{title?:string;images?:{original?:{url?:string}}}>};
+  const results=(result.data||[]).map((x,n)=>(n+1)+". "+(x.title||"GIF")+": "+(x.images?.original?.url||"")).filter(x=>x.length<650);
+  return i.editReply(results.join("\n")||"No GIFs found.");
+ }
+ if(["gifsave","gifs","gifuse","gifremove"].includes(name)){
+  const settingKey="gif_inventory_"+i.user.id;
+  const saved=await getSetting(guild.id,settingKey);
+  let inventory:Record<string,string>={};
+  try{inventory=JSON.parse(saved||"{}");}catch{}
+  if(name==="gifs")return reply(i,"Your saved GIFs: "+(Object.keys(inventory).join(", ")||"none")+". Use /gifuse to post.");
+  const n=i.options.getString("name",true).toLowerCase().trim();
+  if(!/^[a-z0-9_-]{1,28}$/.test(n))return reply(i,"Use 1-28 letters, digits, underscores or hyphens for GIF names.");
+  if(name==="gifsave"){
+   const u=i.options.getString("url",true);
+   let parsed:URL;try{parsed=new URL(u);}catch{return reply(i,"Invalid URL.");}
+   if(parsed.protocol!=="https:"||!["media.giphy.com","i.giphy.com","media.tenor.com","c.tenor.com"].includes(parsed.hostname))return reply(i,"Use an HTTPS GIF from GIPHY or Tenor media domains.");
+   if(!inventory[n]&&Object.keys(inventory).length>=25)return reply(i,"Inventory limit is 25 GIFs.");
+   inventory[n]=u;
+   await setSetting(guild.id,settingKey,JSON.stringify(inventory));
+   return reply(i,"Saved GIF **"+n+"**.");
+  }
+  if(!inventory[n])return reply(i,"No saved GIF with that name.");
+  if(name==="gifremove"){delete inventory[n];await setSetting(guild.id,settingKey,JSON.stringify(inventory));return reply(i,"Removed GIF **"+n+"**.");}
+  return i.reply({content:inventory[n],allowedMentions:{parse:[]}});
+ }
  if(name==="suggestionreview"){
   const id=i.options.getString("id",true),decision=i.options.getString("decision",true),note=i.options.getString("note")||"";
   const {data,error}=await db.from("bot_suggestions").update({status:decision,reviewed_by:i.user.id,review_note:note}).eq("guild_id",guild.id).eq("id",id).select("id").maybeSingle();
@@ -360,7 +433,7 @@ async function handleCommand(i:ChatInputCommandInteraction){
   const {error}=await db.from("bot_warnings").insert({guild_id:guild.id,discord_user_id:user.id,moderator_id:i.user.id,reason});
   if(error) throw new Error(error.message);
   await logEvent(guild.id,i.user.id,"member_warned",{target:user.id,reason});
-  await user.send(`You were warned in ${guild.name}: ${reason}`).catch(()=>null);
+  await user.send(`Moderation notice — ${guild.name}\nAction: Warning\nReason: ${reason}`).catch(()=>null);
   return reply(i,`Warned ${user.tag}. Reason: ${reason}`);
  }
  if(name==="warnings"){
@@ -374,6 +447,9 @@ async function handleCommand(i:ChatInputCommandInteraction){
   if(!member) return reply(i,"That member is not in this server.");
   if(member.id===i.user.id||member.id===client.user?.id) return reply(i,"You cannot moderate yourself or the bot.");
   const reason=i.options.getString("reason")||`Action by ${i.user.tag}`;
+  const actionLabel=name==="timeout"?"Timed out":name==="kick"?"Kicked":name==="ban"?"Banned":"Timeout removed";
+  const duration=name==="timeout"?i.options.getInteger("minutes",true):null;
+  await user.send(`Moderation notice — ${guild.name}\nAction: ${actionLabel}${duration?" ("+duration+" minutes)":""}\nReason: ${reason}`).catch(()=>null);
   if(name==="timeout") await member.timeout(i.options.getInteger("minutes",true)*60_000,reason);
   else if(name==="untimeout") await member.timeout(null,reason);
   else if(name==="kick") await member.kick(reason);
@@ -481,7 +557,7 @@ client.on(Events.MessageCreate,async message=>{
   const {error}=await db.from("bot_members").upsert({guild_id:message.guild.id,discord_user_id:message.author.id,username:message.author.username,display_name:message.member?.displayName||message.author.username,xp:newXp,level:newLevel,message_count:Number(current?.message_count||0)+1,last_seen_at:new Date().toISOString()},{onConflict:"guild_id,discord_user_id"});
   if(error) console.error("XP update failed:",error.message);
   if(newLevel>Number(current?.level||0)){
-   if(message.channel.isTextBased()) await message.channel.send({embeds:[embed("Level up!",`<@${message.author.id}> reached level **${newLevel}**.`,colors.good)]}).catch(()=>null);
+   // Silent XP: award roles without sending messages on level gains.
    const roleId=await getSetting(message.guild.id,`rank_role_${newLevel}`);
    if(roleId&&message.member) await message.member.roles.add(roleId).catch(()=>null);
    await logEvent(message.guild.id,message.author.id,"level_up",{level:newLevel,xp:newXp});
