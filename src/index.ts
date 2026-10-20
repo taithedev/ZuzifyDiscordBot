@@ -347,14 +347,14 @@ async function handleCommand(i:ChatInputCommandInteraction){
   await db.from("bot_polls").insert({guild_id:guild.id,discord_user_id:i.user.id,question,options,message_id:sent.id});
   return;
  }
- const ownerStaff=isOwner(i.user.id)||i.user.id===guild.ownerId;
+ const ownerStaff=isOwner(i.user.id)||i.user.id===guild!.ownerId;
  const staffTiers=["moderator","community_manager","admin","owner"] as const;
  async function staffTier(){
   if(ownerStaff)return "owner";
-  const member=await guild.members.fetch(i.user.id).catch(()=>null);
+  const member=await guild!.members.fetch(i.user.id).catch(()=>null);
   if(!member)return "member";
   for(const tier of ["owner","admin","community_manager","moderator"] as const){
-   const id=await getSetting(guild.id,"staff_role_"+tier);
+   const id=await getSetting(guild!.id,"staff_role_"+tier);
    if(id&&member.roles.cache.has(id))return tier;
   }
   return "member";
@@ -449,11 +449,11 @@ async function handleCommand(i:ChatInputCommandInteraction){
   const reason=i.options.getString("reason")||`Action by ${i.user.tag}`;
   const actionLabel=name==="timeout"?"Timed out":name==="kick"?"Kicked":name==="ban"?"Banned":"Timeout removed";
   const duration=name==="timeout"?i.options.getInteger("minutes",true):null;
-  await user.send(`Moderation notice — ${guild.name}\nAction: ${actionLabel}${duration?" ("+duration+" minutes)":""}\nReason: ${reason}`).catch(()=>null);
   if(name==="timeout") await member.timeout(i.options.getInteger("minutes",true)*60_000,reason);
   else if(name==="untimeout") await member.timeout(null,reason);
   else if(name==="kick") await member.kick(reason);
   else await guild.members.ban(user.id,{reason});
+  await user.send(`Moderation notice — ${guild.name}\nAction: ${actionLabel}${duration?" ("+duration+" minutes)":""}\nReason: ${reason}`).catch(()=>null);
   await logEvent(guild.id,i.user.id,name,{target:user.id,reason});
   return reply(i,`${name} completed for ${user.tag}.`);
  }
