@@ -123,7 +123,7 @@ export function linkPage():string{
   supabaseUrl:ecosystemUrl,publishableKey:config.ecosystemPublishableKey,
   ready:linkingReady()
  }).replace(/</g,"\\u003c");
- return \`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+ return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
  <title>Connect Zuzify account</title><style>html{color-scheme:dark}body{font:16px system-ui;background:#09090b;color:#fafafa;min-height:100vh;display:grid;place-items:center;margin:0}
  main{background:#141418;padding:32px;border:1px solid #323238;border-radius:18px;max-width:390px;width:calc(100% - 64px)}
  h1{font-size:24px}p{line-height:1.5;color:#bcbcc4}input,button{display:block;box-sizing:border-box;width:100%;padding:13px;margin-top:12px;border-radius:9px;font:inherit}
@@ -134,7 +134,7 @@ export function linkPage():string{
  <input type="password" id="password" autocomplete="current-password" placeholder="Account password" required>
  <button id="submit">Verify and connect</button></form><p id="status" role="status"></p>
  <small>Your password is sent directly to Supabase Auth, not stored by the Discord bot. Link requests expire after 10 minutes.</small></main>
- <script>const settings=\${settings};const form=document.getElementById("form");const status=document.getElementById("status");
+ <script>const settings=${settings};const form=document.getElementById("form");const status=document.getElementById("status");
  const code=new URLSearchParams(location.search).get("code");if(!code||!settings.ready){form.hidden=true;status.textContent="Linking is not available. Request a new link from /linkaccount or contact an administrator.";}
  form.addEventListener("submit",async event=>{event.preventDefault();const button=document.getElementById("submit");button.disabled=true;status.textContent="Verifying account...";
  try{const email=document.getElementById("email").value.trim();const password=document.getElementById("password").value;
@@ -145,5 +145,5 @@ export function linkPage():string{
  const linked=await response.json();if(!response.ok)throw new Error(linked.error||"Account connection failed.");
  form.reset();form.hidden=true;history.replaceState(null,"","/link");status.textContent="Account connected. Return to Discord and use /accounts or /accountstats.";
  }catch(err){status.textContent=err instanceof Error?err.message:"Could not connect account.";}finally{button.disabled=false;}});
- </script></body></html>\`;
+ </script></body></html>`;
 }
