@@ -3,10 +3,10 @@ import {createClient} from "@supabase/supabase-js";
 import {config} from "./config.js";
 import {db as botDb} from "./db.js";
 
-export const services = ["prezzstore","zuzifysocials","zuzuos","fastproxy"] as const;
+export const services = ["prezzstore","zuzifysocials","zuzuos","fastproxy","zuzuloader"] as const;
 export type Service = typeof services[number];
 export const serviceNames: Record<Service,string> = {
- prezzstore:"PrezzStore",zuzifysocials:"Zuzify Socials",zuzuos:"ZuzuOS",fastproxy:"FastProxy"
+ prezzstore:"PrezzStore",zuzifysocials:"Zuzify Socials",zuzuos:"ZuzuOS",fastproxy:"FastProxy",zuzuloader:"ZuzuLoader"
 };
 export const isService = (value:string):value is Service => services.some(s=>s===value);
 
@@ -92,6 +92,7 @@ async function nameFor(service:Service,userId:string):Promise<string|null>{
   prezzstore:{table:"prezzstore_user_profiles",key:"user_id",column:"display_name"},
   zuzuos:{table:"zuzuos_profiles",key:"id",column:"display_name"},
   fastproxy:{table:"fastproxy_profiles",key:"user_id",column:"display_name"},
+  zuzuloader:{table:"zuzuloader_roles",key:"user_id",column:"role"},
   zuzifysocials:{table:"zuzify_members",key:"user_id",column:"user_id"}
  };
  if(!ecosystemDb)return null;
