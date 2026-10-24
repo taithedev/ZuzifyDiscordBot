@@ -139,18 +139,18 @@ export function linkPage():string{
  h1{font-size:24px}p{line-height:1.5;color:#bcbcc4}input,button{display:block;box-sizing:border-box;width:100%;padding:13px;margin-top:12px;border-radius:9px;font:inherit}
  input{background:#24242a;color:white;border:1px solid #44444a}button{background:white;color:#080808;border:0;font-weight:700;cursor:pointer}button:disabled{opacity:.5}
  #status{white-space:pre-wrap}small{color:#ababaf}</style></head>
- <body><main><h1>Connect your Zuzify account</h1><p>This secure one-time link connects an existing account to your Discord user. Use the email and password for the Zuzify site you selected. Do not enter passwords in Discord.</p>
+ <body><main><h1 id="heading">Connect your Zuzify account</h1><p>This secure one-time link connects an existing account to your Discord user. Use the email and password for the Zuzify site you selected. Do not enter passwords in Discord.</p>
  <form id="form"><input type="email" id="email" autocomplete="username" placeholder="Account email" required>
  <input type="password" id="password" autocomplete="current-password" placeholder="Account password" required>
  <button id="submit">Verify and connect</button></form><p id="status" role="status"></p>
  <small>Your password is sent directly to Supabase Auth, not stored by the Discord bot. Link requests expire after 10 minutes.</small></main>
  <script>const settings=${settings};const form=document.getElementById("form");const status=document.getElementById("status");
- const code=new URLSearchParams(location.search).get("code");if(!code||!settings.ready){form.hidden=true;status.textContent="Linking is not available. Request a new link from /linkaccount or contact an administrator.";}
- form.addEventListener("submit",async event=>{event.preventDefault();const button=document.getElementById("submit");button.disabled=true;status.textContent="Verifying account...";
+ const params=new URLSearchParams(location.search);const code=params.get("code");const signup=params.get("mode")==="signup";if(signup){document.getElementById("heading").textContent="Create ZuzuLoader account";document.getElementById("submit").textContent="Create and connect";}if(!code||!settings.ready){form.hidden=true;status.textContent="Linking is not available. Request a new link from /linkaccount or contact an administrator.";}
+ form.addEventListener("submit",async event=>{event.preventDefault();const button=document.getElementById("submit");button.disabled=true;status.textContent=signup?"Creating account...":"Verifying account...";
  try{const email=document.getElementById("email").value.trim();const password=document.getElementById("password").value;
- const auth=await fetch(settings.supabaseUrl.replace(/\\/$/,"")+"/auth/v1/token?grant_type=password",{
+ const auth=await fetch(settings.supabaseUrl.replace(/\\/$/,"")+(signup?"/auth/v1/signup":"/auth/v1/token?grant_type=password"),{
   method:"POST",headers:{"Content-Type":"application/json","apikey":settings.publishableKey},body:JSON.stringify({email,password})});
- const result=await auth.json();if(!auth.ok||!result.access_token)throw new Error("Sign-in failed. Check your credentials and use an existing Zuzify account.");
+ const result=await auth.json();if(!auth.ok)throw new Error(result.msg||result.error_description||result.message||"Authentication failed.");if(!result.access_token){if(signup){form.reset();form.hidden=true;status.textContent="Account created. Check your email for confirmation, then use /loaderaccount signin to connect it.";return;}throw new Error("Sign-in failed. Check your email and password.");}
  const response=await fetch("/api/v1/link/complete",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+result.access_token},body:JSON.stringify({code})});
  const linked=await response.json();if(!response.ok)throw new Error(linked.error||"Account connection failed.");
  form.reset();form.hidden=true;history.replaceState(null,"","/link");status.textContent="Account connected. Return to Discord and use /accounts or /accountstats.";
