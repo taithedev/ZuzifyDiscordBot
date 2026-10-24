@@ -222,6 +222,14 @@ async function handleCommand(i:ChatInputCommandInteraction){
   return reply(i,"Saved **"+key+"** = **"+value+"**. Changes apply without redeploying.");
  }
  if(name==="signup") return reply(i,"Create your account on the official Zuzify website (PrezzStore, Zuzify Socials, ZuzuOS or FastProxy), then use /login or /linkaccount to connect it. Never give your website password to a Discord command.");
+ if(name==="loaderaccount"){
+  const action=i.options.getString("action",true);
+  if(action!=="create"&&action!=="signin")return reply(i,"Choose Create account or Sign in.");
+  if(!linkingReady())return reply(i,"Loader account linking is not configured on the bot host.");
+  await i.deferReply({ephemeral:true});
+  const url=await createChallenge(i.user.id,"zuzuloader");
+  return i.editReply({content:(action==="create"?"Create your ZuzuLoader account":"Sign in to your ZuzuLoader account")+" through this private link (expires in 10 minutes):\n"+url+"&mode="+(action==="create"?"signup":"signin")+"\n\nCredentials go directly to Supabase Auth, not Discord. Do not share this link."});
+ }
  if(name==="login"||name==="linkaccount"){
   const service=i.options.getString("service",true);
   if(!isService(service))return reply(i,"Select a supported Zuzify service.");
