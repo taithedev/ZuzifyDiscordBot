@@ -83,6 +83,8 @@ const commands = [
    .addChannelOption(o=>o.setName("channel").setDescription("Target text channel").setRequired(true).addChannelTypes(ChannelType.GuildText,ChannelType.GuildAnnouncement))
    .addStringOption(o=>o.setName("message").setDescription("Announcement text").setRequired(true).setMaxLength(1800)),
 
+ new SlashCommandBuilder().setName("loaderaccount").setDescription("Create or sign in to a ZuzuLoader account securely")
+  .addStringOption(o=>o.setName("action").setDescription("Create an account or sign in").setRequired(true).addChoices({name:"Create account",value:"create"},{name:"Sign in",value:"signin"})),
  new SlashCommandBuilder().setName("linkaccount").setDescription("Securely connect an existing Zuzify website account").addStringOption(o=>o.setName("service").setDescription("Which website account to connect").setRequired(true).addChoices({name:"PrezzStore",value:"prezzstore"},{name:"Zuzify Socials",value:"zuzifysocials"},{name:"ZuzuOS",value:"zuzuos"},{name:"FastProxy",value:"fastproxy"},{name:"ZuzuLoader",value:"zuzuloader"})),
  new SlashCommandBuilder().setName("accounts").setDescription("List your privately linked Zuzify accounts"),
  new SlashCommandBuilder().setName("unlinkaccount").setDescription("Disconnect a linked account").addStringOption(o=>o.setName("service").setDescription("Which account to disconnect").setRequired(true).addChoices({name:"PrezzStore",value:"prezzstore"},{name:"Zuzify Socials",value:"zuzifysocials"},{name:"ZuzuOS",value:"zuzuos"},{name:"FastProxy",value:"fastproxy"},{name:"ZuzuLoader",value:"zuzuloader"})),
